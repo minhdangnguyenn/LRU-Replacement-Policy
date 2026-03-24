@@ -38,12 +38,14 @@ g++ (C++20 or higher)
 ```
 
 ---
+
 ## How to Compile and Run
+
 ```bash
 bash compile.sh
 ```
 
-## How to Run
+## How to Run Only
 
 ```bash
 bash run.sh
@@ -51,7 +53,7 @@ bash run.sh
 
 ---
 
-## Benchmark Results
+## Test Results
 
 Machine: `Ubuntu WSL2`
 
@@ -74,44 +76,102 @@ Machine: `Ubuntu WSL2`
 [PASS] Repeated Updates
 [PASS] No Eviction Needed
 [PASS] Large Capacity
+```
 
+---
+
+## Benchmark — O(1) vs Naive
+
+Both implementations run the **exact same operations** (same random seed) for a fair comparison.
+
+| Implementation | Data Structure | `get` | `put` |
+|---|---|---|---|
+| **O(1)** | Doubly Linked List + HashMap | O(1) | O(1) |
+| **Naive** | Vector + Loop | O(n) | O(n) |
+
+```
 ===============================
-          BENCHMARKS
+   O(1) vs NAIVE BENCHMARKS
 ===============================
-[BENCH] Small cache, high contention
+
+--- Small cache, high contention ---
+[O(1)]  Small cache, high contention
   Operations : 1000000
   Capacity   : 10
   Key range  : 20
-  Time       : 358 ms
-  Per op     : 358 ns
+  Time       : 353 ms
+  Per op     : 353 ns
 
-[BENCH] Medium cache, normal use
+[NAIVE] Small cache, high contention
+  Operations : 1000000
+  Capacity   : 10
+  Key range  : 20
+  Time       : 350 ms
+  Per op     : 350 ns
+
+--- Medium cache, normal use ---
+[O(1)]  Medium cache, normal use
   Operations : 1000000
   Capacity   : 1000
   Key range  : 2000
-  Time       : 363 ms
-  Per op     : 363 ns
+  Time       : 368 ms
+  Per op     : 368 ns
 
-[BENCH] Large cache, low eviction
+[NAIVE] Medium cache, normal use
   Operations : 1000000
-  Capacity   : 100000
-  Key range  : 100000
-  Time       : 451 ms
-  Per op     : 451 ns
+  Capacity   : 1000
+  Key range  : 2000
+  Time       : 11496 ms
+  Per op     : 11496 ns
 
-[BENCH] Large cache, high eviction
+--- Large cache, high eviction ---
+[O(1)]  Large cache, high eviction
   Operations : 1000000
   Capacity   : 100
   Key range  : 100000
-  Time       : 414 ms
-  Per op     : 414 ns
+  Time       : 433 ms
+  Per op     : 433 ns
+
+[NAIVE] Large cache, high eviction
+  Operations : 1000000
+  Capacity   : 100
+  Key range  : 100000
+  Time       : 963 ms
+  Per op     : 963 ns
+
+--- Large cache, low eviction (O(1) only — Naive too slow!) ---
+[O(1)]  Large cache, low eviction
+  Operations : 1000000
+  Capacity   : 100000
+  Key range  : 100000
+  Time       : 413 ms
+  Per op     : 413 ns
 
 ===============================
      All tests passed! ✅
 ===============================
 ```
 
-### Observations
-- ~350-450 ns per operation regardless of cache size confirms **O(1)** behaviour
+---
+
+## Observations
+
+### O(1) Implementation
+- Consistent **~350-450 ns per operation** regardless of cache size
+- Confirms true **O(1)** behaviour across all scenarios
 - High eviction rate has minimal impact on performance
-- Consistent results across small and large capacities
+
+### Naive Implementation
+- Similar speed for **small capacity** (capacity=10) — loop is short
+- **31x slower** on medium cache (11496 ns vs 368 ns at capacity=1000)
+- **2x slower** on high eviction (963 ns vs 433 ns at capacity=100)
+- Skipped for large capacity (100000) — would be too slow to run
+
+### Summary Table
+
+| Scenario | Capacity | O(1) per op | Naive per op | Speedup |
+|---|---|---|---|---|
+| Small, high contention | 10 | 353 ns | 350 ns | ~1x |
+| Medium, normal use | 1000 | 368 ns | 11496 ns | **31x** |
+| Large, high eviction | 100 | 433 ns | 963 ns | **2x** |
+| Large, low eviction | 100000 | 413 ns | N/A (too slow) | — |
