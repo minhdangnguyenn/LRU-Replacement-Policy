@@ -15,10 +15,11 @@ class LRUCache {
 public:
     LRUCache(const int capacity);
     std::list<std::pair<int, int>> orders;
-    std::unordered_map<int, Node*> map;
+    std::unordered_map<int, Node*> um;
     void put(int key, int value);
     int get(int key);
     void removeNode(Node* node);
+    void push_head(Node* node);
     ~LRUCache();
 
 private:
