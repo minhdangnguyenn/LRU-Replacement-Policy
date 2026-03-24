@@ -159,6 +159,83 @@ void test_large_capacity() {
 }
 
 // ─────────────────────────────────────────
+//  STRESS TESTS (NEW — larger sizes)
+// ─────────────────────────────────────────
+void test_stress_evictions() {
+    BufferPool cache(100);
+    for (int i = 0; i < 10000; i++) {
+        cache.pin(i, i * 3);
+    }
+    // only last 100 should remain: 9900..9999
+    for (int i = 9900; i < 10000; i++) {
+        assert(cache.get(i) == i * 3);
+    }
+    assert(cache.get(9899) == -1);
+    assert(cache.get(0)    == -1);
+    pass("Stress Evictions");
+}
+
+void test_stress_repeated_updates() {
+    BufferPool cache(10);
+    for (int i = 0; i < 100000; i++) {
+        cache.pin(i % 10, i);
+    }
+    // key k's last value = last i where i%10==k = 99990+k
+    for (int k = 0; k < 10; k++) {
+        assert(cache.get(k) == 99990 + k);
+    }
+    pass("Stress Repeated Updates");
+}
+
+void test_stress_mixed() {
+    BufferPool cache(500);
+    // fill cache
+    for (int i = 0; i < 500; i++) {
+        cache.pin(i, i * 7);
+    }
+    // read half to make them MRU
+    for (int i = 0; i < 250; i++) {
+        assert(cache.get(i) == i * 7);
+    }
+    // insert 250 new keys — should evict keys 250..499
+    for (int i = 500; i < 750; i++) {
+        cache.pin(i, i * 7);
+    }
+    // keys 0..249 should still be there (accessed recently)
+    for (int i = 0; i < 250; i++) {
+        assert(cache.get(i) == i * 7);
+    }
+    // keys 250..499 should be evicted
+    for (int i = 250; i < 500; i++) {
+        assert(cache.get(i) == -1);
+    }
+    // keys 500..749 should be there
+    for (int i = 500; i < 750; i++) {
+        assert(cache.get(i) == i * 7);
+    }
+    pass("Stress Mixed");
+}
+
+void test_stress_large_capacity() {
+    int cap = 100000;
+    BufferPool cache(cap);
+    for (int i = 0; i < cap; i++) {
+        cache.pin(i, i * 5);
+    }
+    for (int i = 0; i < cap; i++) {
+        assert(cache.get(i) == i * 5);
+    }
+    // evict oldest
+    for (int i = cap; i < cap + 1000; i++) {
+        cache.pin(i, i * 5);
+    }
+    for (int i = 0; i < 1000; i++) {
+        assert(cache.get(i) == -1);
+    }
+    pass("Stress Large Capacity");
+}
+
+// ─────────────────────────────────────────
 //  BENCHMARK — OPTIMIZED
 // ─────────────────────────────────────────
 void benchmark(const std::string& name, int capacity, int operations, int key_range) {
@@ -194,7 +271,7 @@ void benchmark(const std::string& name, int capacity, int operations, int key_ra
 // ─────────────────────────────────────────
 void benchmark_naive(const std::string& name, int capacity, int operations, int key_range) {
     LRUCacheNaive cache(capacity);
-    std::mt19937 gen(42);  // same seed — same operations as optimized!
+    std::mt19937 gen(42);
     std::uniform_int_distribution<int> keyDist(0, key_range - 1);
     std::uniform_int_distribution<int> opDist(0, 1);
     std::uniform_int_distribution<int> valDist(0, 9999);
@@ -255,15 +332,25 @@ int main() {
 
     std::cout << std::endl;
     std::cout << "===============================" << std::endl;
+    std::cout << "         STRESS TESTS          " << std::endl;
+    std::cout << "===============================" << std::endl;
+    test_stress_evictions();
+    test_stress_repeated_updates();
+    test_stress_mixed();
+    test_stress_large_capacity();
+
+    std::cout << std::endl;
+    std::cout << "===============================" << std::endl;
     std::cout << "   O(1) vs NAIVE BENCHMARKS   " << std::endl;
     std::cout << "===============================" << std::endl;
-    compare("Small cache, high contention",  10,     1000000, 20);
-    compare("Medium cache, normal use",      1000,   1000000, 2000);
-    compare("Large cache, high eviction",    100,    1000000, 100000);
+    compare("Small cache, high contention",  10,      5000000, 20);
+    compare("Medium cache, normal use",      1000,    5000000, 2000);
+    compare("Large cache, high eviction",    100,     5000000, 100000);
 
     // Naive skipped for large capacity — too slow!
     std::cout << "--- Large cache, low eviction (O(1) only — Naive too slow!) ---" << std::endl;
-    benchmark("Large cache, low eviction",   100000, 1000000, 100000);
+    benchmark("Large cache, low eviction",   100000,  5000000, 100000);
+    benchmark("Massive cache",               1000000, 5000000, 1000000);
 
     std::cout << "===============================" << std::endl;
     std::cout << "     All tests passed! ✅      " << std::endl;
