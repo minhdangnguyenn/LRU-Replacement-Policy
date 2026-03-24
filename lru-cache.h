@@ -21,7 +21,7 @@ public:
     int get(int key);
     void remove_page(Page* node);
     void push_head(Page* node);
-    Page * findLRU
+    Page * findLRU;
     ~BufferPool();
 
 private:
