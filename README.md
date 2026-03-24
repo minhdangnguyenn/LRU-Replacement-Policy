@@ -198,7 +198,7 @@ Both implementations run the **exact same operations** (same random seed) for a 
 - Similar speed for **small capacity** (cap=10) — loop is short enough to be competitive
 - **~13x slower** on medium cache (5106 ns vs 399 ns at cap=1000)
 - **~2x slower** on high eviction (846 ns vs 416 ns at cap=100)
-- Skipped for large/massive capacity — would be prohibitively slow
+- Skipped for large/massive capacity — it was too slow, more than a minute
 
 ### Summary Table
 
