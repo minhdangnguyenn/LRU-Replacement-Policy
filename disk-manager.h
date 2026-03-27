@@ -23,7 +23,7 @@ public:
 private:
     std::fstream  file_;       // binary file handle
     std::string   filename_;
-    int           numPages_;   // total pages allocated so far
+    int           numPages_ = 0;   // total pages allocated so far. need to init 0 to avoid garbage memory
     std::stack<int> freeList_;
 };
 

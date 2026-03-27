@@ -1,10 +1,13 @@
+#include <cstring>
 #include <iostream>
 #include <cassert>
 #include <chrono>
 #include <random>
 #include <string>
 #include "buffer-pool.h"
+#include "disk-manager.h"
 #include "lru-cache-naive.h"
+#include "test-data.h"
 
 // ─────────────────────────────────────────
 //  HELPERS
@@ -306,9 +309,34 @@ void compare(const std::string& name, int capacity, int operations, int key_rang
     benchmark_naive(name, capacity, operations, key_range);
 }
 
-// ─────────────────────────────────────────
-//  MAIN
-// ─────────────────────────────────────────
+// This is test for disk manager
+void test_disk_write_read() {
+    std::remove("test.db");  // ensure clean start — no leftover file
+    {
+        DiskManager dm("test.db");
+        int id = dm.allocatePage();
+        std::cout << "allocated page id: " << id << std::endl;
+
+        char buf[PAGE_SIZE];
+        memset(buf, 0, PAGE_SIZE);
+        snprintf(buf, PAGE_SIZE, "%s", TEST_STRING);
+        dm.writePage(id, buf);
+        std::cout << "wrote to page: " << id << std::endl;
+        std::cout << "first 20 chars written: " << std::string(buf, 20) << std::endl;
+    }
+    {
+        DiskManager dm("test.db");
+        char buf[PAGE_SIZE];
+        memset(buf, 0, PAGE_SIZE);
+        dm.readPage(0, buf);
+        std::cout << "first 20 chars read: " << std::string(buf, 20) << std::endl;
+        std::cout << "match: " << (strcmp(buf, TEST_STRING) == 0) << std::endl;
+        assert(strcmp(buf, TEST_STRING) == 0);
+    }
+    std::remove("test.db");
+    pass("Disk Write Read");
+}
+
 int main() {
     std::cout << "===============================" << std::endl;
     std::cout << "         BASIC TESTS           " << std::endl;
@@ -351,6 +379,8 @@ int main() {
     std::cout << "--- Large cache, low eviction (O(1) only — Naive too slow!) ---" << std::endl;
     benchmark("Large cache, low eviction",   100000,  5000000, 100000);
     benchmark("Massive cache",               1000000, 5000000, 1000000);
+
+    test_disk_write_read();
 
     std::cout << "===============================" << std::endl;
     std::cout << "     All tests passed! ✅      " << std::endl;
