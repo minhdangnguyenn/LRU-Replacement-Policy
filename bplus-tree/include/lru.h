@@ -1,4 +1,3 @@
-#include "page.h"
 #ifndef LRU_H
 #define LRU_H
 #include "replacer.h"
@@ -11,14 +10,14 @@ public:
     ~LRU() override = default;
     bool evict(int& frame_id) override;
     void pin(int) override;
-    void unpin(int);
+    void unpin(int) override;
     size_t Size() override;
 private:
     // orders store a list of frame_id, which can be removed
     std::list<int> orders; // e.g. LRU - frameid1 - frameid2 - MRU
 
     // map frame_id -> pointer to its address in orders
-    std::unordered_map<int, std::list<int>::iterator> candidates; 
+    std::unordered_map<int, std::list<int>::iterator> candidates;
     size_t num_pages;
 };
 

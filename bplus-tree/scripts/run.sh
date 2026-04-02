@@ -5,6 +5,7 @@ echo "==============================="
 echo ""
 
 # Run the executable
+./build/tests
 ./build/dbms
 
 # Check if tests passed

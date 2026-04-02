@@ -19,4 +19,5 @@ echo "         Running Tests..."
 echo "==============================="
 echo ""
 
+./tests
 ./dbms

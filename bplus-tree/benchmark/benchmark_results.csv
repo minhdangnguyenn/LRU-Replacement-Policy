@@ -1,0 +1,24 @@
+name,type,capacity,operations,key_range,time_ms,ns_per_op
+LRU Evict Empty,LRU-TEST,2,4,2,0,402
+LRU Unpin Then Evict,LRU-TEST,2,9,2,0,647
+LRU Capacity One,LRU-TEST,1,7,2,0,237
+LRU Pin Updates Recency,LRU-TEST,2,8,2,0,304
+LRU Evict Miss,LRU-TEST,3,6,3,0,63
+LRU Many Evictions,LRU-TEST,3,108,100,0,110
+LRU Pin Prevents Eviction,LRU-TEST,3,16,4,0,286
+LRU Alternating Operations,LRU-TEST,3,11,4,0,217
+LRU Duplicate Unpin,LRU-TEST,2,1003,1,0,136
+LRU No Eviction Needed,LRU-TEST,5,15,5,0,267
+LRU Large Capacity,LRU-TEST,1000,3003,1000,0,260
+LRU Stress Evictions,LRU-TEST,100,10201,10000,1,107
+LRU Stress Repeated Updates,LRU-TEST,10,200010,10,66,331
+LRU Stress Mixed,LRU-TEST,500,2750,750,0,284
+LRU Stress Large Capacity,LRU-TEST,100000,102001,100000,10,104
+Small cache - high contention,O1,10,5000000,20,1598,319
+Small cache - high contention,NAIVE,10,5000000,20,1236,247
+Medium cache - normal use,O1,1000,5000000,2000,1711,342
+Medium cache - normal use,NAIVE,1000,5000000,2000,34087,6817
+Large cache - high eviction,O1,100,5000000,100000,1828,365
+Large cache - high eviction,NAIVE,100,5000000,100000,4932,986
+Large cache - low eviction,O1,100000,5000000,100000,2283,456
+Massive cache,O1,1000000,5000000,1000000,2613,522
