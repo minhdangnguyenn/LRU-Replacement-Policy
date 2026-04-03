@@ -17,14 +17,18 @@ DiskManager::DiskManager(const std::string& filename) : filename_(filename) {
 
 int DiskManager::allocate_page() {
     int page_id = this->numPages_ + 1;
+    // create a page at empty byte in the file
+    // wirte empty byte into the file
+    // return the new page_id correspond
+    return page_id;
 };
 
-// void DiskManager::writePage(int pageId, const char* data) {
-//     file_.clear();
-//     file_.seekp(pageId * PAGE_SIZE);
-//     file_.write(data, PAGE_SIZE);
-//     file_.flush();
-// }
+void DiskManager::write_page(int page_id, const char* data) {
+    file_.clear();
+    file_.seekp(page_id * PAGE_SIZE);
+    file_.write(data, PAGE_SIZE);
+    file_.flush();
+}
 
 // void DiskManager::readPage(int pageId, char* data) {
 //     file_.clear();

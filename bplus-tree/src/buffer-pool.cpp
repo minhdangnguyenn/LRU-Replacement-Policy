@@ -37,13 +37,25 @@ int BufferPool::create_new_page() {
 }
 
 // this function is opposite to the create_new_page
-int *BufferPool::fetch_page(int page_id) {
-  // check if cache hit
-  if (this->page_table.contains(page_id)) {
-    int frame_id = this->page_table[page_id];
-    this->replacer->pin(frame_id);
-    return &frame_id;
-  }
+int BufferPool::fetch_page(int page_id) {
+    // check if cache hit
+    if (this->page_table.contains(page_id)) {
+        int frame_id = this->page_table[page_id];
+        this->replacer->pin(frame_id);
+        return frame_id;
+    }
+    // if the page_id does not exist
+    // pick a free frame_id or evict one
+    if (!this->free_frame_list.empty()) {
+        int frame_id = this->free_frame_list.back();
+        Frame* frame = this->frames[frame_id];
+        this->free_frame_list.pop_back();
+        int page_id = this->page_table[frame_id];
+
+        // write the new page to disk
+        this->disk->read_page(page_id, frame->get_page()->get_data());
+    } else {
+    }
 }
 
 BufferPool::~BufferPool() {
