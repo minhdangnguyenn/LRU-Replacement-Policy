@@ -18,41 +18,42 @@ BufferPool::BufferPool(const int capacity) : capacity(capacity) {
 
 int BufferPool::create_new_page() {
     int page_id = this->disk->allocate_page();
-    int frame_id = -1; // set a sentinel value for frame_id
+    int new_frame_id = -1; // set a sentinel value for frame_id
     // frames is full
     if (this->free_frame_list.empty()) {
-        bool is_evictable = this->replacer->evict(frame_id); // frame_id will be init here
+        bool is_evictable = this->replacer->evict(new_frame_id); // frame_id will be init here
         if (!is_evictable) {
-            std::cout << "The frame id " + std::to_string(frame_id) +
+            std::cout << "The frame id " + std::to_string(new_frame_id) +
                             " is not evictable !"
                     << std::endl;
             return -1;
         }
 
         // update the page id correspond to the old frame
-        int old_page_id = this->frames[frame_id].get_pid();
+        int old_page_id = this->frames[new_frame_id].get_pid();
 
         // check if the frame correspond with the old page in buffer is dirty first
-        if (this->frames[frame_id].get_dirty()) {
+        if (this->frames[new_frame_id].get_dirty()) {
             this->flush_page(old_page_id);
         }
 
         this->page_table.erase(old_page_id);
 
         // mapping new page_id with a free frame_id
-        this->page_table[page_id] = frame_id;
-        this->frames[frame_id].set_pid(page_id);
+        this->page_table[page_id] = new_frame_id;
+        this->frames[new_frame_id].set_pid(page_id);
+        this->frames[new_frame_id].set_dirty(false);
     } else {
         // if there are still free frames in the buffer pool
-        frame_id = this->free_frame_list.back();
+        new_frame_id = this->free_frame_list.back();
         this->free_frame_list.pop_back();
 
         // match the frame in the free_frame with the new created page
-        this->page_table.insert({page_id, frame_id});
-        this->frames[frame_id].set_dirty(false);
-        this->frames[frame_id].set_pid(page_id);
+        this->page_table.insert({page_id, new_frame_id});
+        this->frames[new_frame_id].set_dirty(false);
+        this->frames[new_frame_id].set_pid(page_id);
     }
-    this->replacer->pin(frame_id);
+    this->replacer->pin(new_frame_id);
     return page_id;
 }
 

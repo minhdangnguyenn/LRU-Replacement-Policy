@@ -8,7 +8,7 @@ int LRUCacheNaive::get(int key) {
     // Loop through to find the key — O(n)
     for (int i = 0; i < cache.size(); i++) {
         if (cache[i].get_key() == key) {
-            int value = cache[i].getValue();
+            int value = cache[i].get_key();
 
             // Move to front (MRU) — O(n)
             cache.erase(cache.begin() + i);

@@ -1,11 +1,12 @@
 #ifndef PAGE_H
 #define PAGE_H
 
+#include "test-data.h"
 class Page {
 private:
     int key;
     int value;
-    char data;
+    char data[PAGE_SIZE];
 
 public:
     // Page* prev = nullptr;

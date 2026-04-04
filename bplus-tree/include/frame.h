@@ -7,6 +7,7 @@ public:
     Frame() = default;
     ~Frame() = default;
     bool get_dirty() const { return this->is_dirty; }
+    void set_dirty(bool dirty) { this->is_dirty = dirty; }
     int get_pin_count() const { return this->pin_count; }
     // Page* get_page();
     int get_pid() const { return this->page_id; }
