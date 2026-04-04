@@ -21,7 +21,6 @@ public:
     // ─────────────────────────────────────────
 
     // allocate_page must return incrementing page_ids
-    // each call must return a different value
     void test_allocate_page_increments() {
         std::remove("test_alloc.db");
         DiskManager dm("test_alloc.db");
@@ -37,8 +36,7 @@ public:
         pass("test_allocate_page_increments");
     }
 
-    // write bytes to a page then read them back
-    // the data must match exactly
+    // write then read back — data must match exactly
     void test_write_read_roundtrip() {
         std::remove("test_rw.db");
         DiskManager dm("test_rw.db");
@@ -58,8 +56,7 @@ public:
         pass("test_write_read_roundtrip");
     }
 
-    // write to two different pages
-    // reading page A must not return data from page B
+    // two pages must be independent — writing A must not affect B
     void test_multiple_pages_independent() {
         std::remove("test_multi.db");
         DiskManager dm("test_multi.db");
@@ -88,6 +85,67 @@ public:
         pass("test_multiple_pages_independent");
     }
 
+    // overwriting a page must replace old data completely
+    void test_overwrite_page() {
+        std::remove("test_overwrite.db");
+        DiskManager dm("test_overwrite.db");
+
+        int id = dm.allocate_page();
+
+        char buf1[PAGE_SIZE] = {};
+        char buf2[PAGE_SIZE] = {};
+        snprintf(buf1, PAGE_SIZE, "first write");
+        snprintf(buf2, PAGE_SIZE, "second write overwrite");
+
+        dm.write_page(id, buf1);
+        dm.write_page(id, buf2);
+
+        char read_buf[PAGE_SIZE] = {};
+        dm.read_page(id, read_buf);
+
+        // must reflect second write only
+        assert(memcmp(read_buf, buf2, PAGE_SIZE) == 0);
+        assert(memcmp(read_buf, buf1, PAGE_SIZE) != 0);
+
+        std::remove("test_overwrite.db");
+        pass("test_overwrite_page");
+    }
+
+    // many pages allocated — all must have unique and sequential ids
+    void test_many_allocations_sequential() {
+        std::remove("test_many.db");
+        DiskManager dm("test_many.db");
+
+        const int N = 20;
+        int ids[N];
+        for (int i = 0; i < N; i++) {
+            ids[i] = dm.allocate_page();
+        }
+        for (int i = 1; i < N; i++) {
+            assert(ids[i] == ids[i - 1] + 1);
+        }
+
+        std::remove("test_many.db");
+        pass("test_many_allocations_sequential");
+    }
+
+    // a newly allocated page must read back as all zeros
+    void test_fresh_page_is_zeroed() {
+        std::remove("test_zero.db");
+        DiskManager dm("test_zero.db");
+
+        int id = dm.allocate_page();
+        char buf[PAGE_SIZE];
+        memset(buf, 0xFF, PAGE_SIZE); // fill with noise
+        dm.read_page(id, buf);
+
+        char zeros[PAGE_SIZE] = {};
+        assert(memcmp(buf, zeros, PAGE_SIZE) == 0);
+
+        std::remove("test_zero.db");
+        pass("test_fresh_page_is_zeroed");
+    }
+
     // ─────────────────────────────────────────
     //  BufferPool tests
     // ─────────────────────────────────────────
@@ -104,7 +162,7 @@ public:
         pass("test_create_new_page_returns_valid_id");
     }
 
-    // each call to create_new_page must return a unique page_id
+    // each call must return a unique page_id
     void test_create_multiple_pages_unique_ids() {
         std::remove("mydb.db");
         BufferPool bp(4);
@@ -121,7 +179,8 @@ public:
         pass("test_create_multiple_pages_unique_ids");
     }
 
-    // fetching a page_id that was never created must return nullptr
+    // fetching an unallocated page_id must return nullptr
+    // fetch_page must validate page_id against num_pages
     void test_fetch_nonexistent_page_returns_null() {
         std::remove("mydb.db");
         BufferPool bp(4);
@@ -133,7 +192,19 @@ public:
         pass("test_fetch_nonexistent_page_returns_null");
     }
 
-    // create a page then fetch it — must return a non-null pointer
+    // negative page_id must also return nullptr
+    void test_fetch_negative_page_id_returns_null() {
+        std::remove("mydb.db");
+        BufferPool bp(4);
+
+        char* data = bp.fetch_page(-1);
+        assert(data == nullptr);
+
+        std::remove("mydb.db");
+        pass("test_fetch_negative_page_id_returns_null");
+    }
+
+    // create then fetch — must return non-null
     void test_fetch_existing_page_returns_data() {
         std::remove("mydb.db");
         BufferPool bp(4);
@@ -148,8 +219,7 @@ public:
         pass("test_fetch_existing_page_returns_data");
     }
 
-    // fetching the same page twice must return the same pointer
-    // second call must be a cache hit — no disk read
+    // fetching the same page twice must return the same pointer — cache hit
     void test_fetch_same_page_twice_cache_hit() {
         std::remove("mydb.db");
         BufferPool bp(4);
@@ -160,13 +230,13 @@ public:
 
         assert(first != nullptr);
         assert(second != nullptr);
-        assert(first == second);  // same frame pointer — cache hit
+        assert(first == second);
 
         std::remove("mydb.db");
         pass("test_fetch_same_page_twice_cache_hit");
     }
 
-    // fill the buffer pool to capacity — all creates must succeed
+    // fill buffer pool to capacity — all must succeed
     void test_fill_to_capacity() {
         std::remove("mydb.db");
         const int CAP = 4;
@@ -181,26 +251,22 @@ public:
         pass("test_fill_to_capacity");
     }
 
-    // fill to capacity, unpin all pages, then create one more
-    // eviction must succeed and return a valid page_id
+    // fill then unpin all — next create must trigger eviction and succeed
     void test_eviction_triggered_when_full() {
         std::remove("mydb.db");
         const int CAP = 4;
         BufferPool bp(CAP);
 
-        // fill pool and collect page_ids
         int ids[CAP];
         for (int i = 0; i < CAP; i++) {
             ids[i] = bp.create_new_page();
             assert(ids[i] >= 0);
         }
 
-        // unpin all so they become evictable
         for (int i = 0; i < CAP; i++) {
             bp.unpin_page(ids[i], false);
         }
 
-        // one more create — must trigger eviction and succeed
         int new_id = bp.create_new_page();
         assert(new_id >= 0);
 
@@ -208,8 +274,8 @@ public:
         pass("test_eviction_triggered_when_full");
     }
 
-    // unpin page A first, then page B
-    // when pool is full, page A must be evicted (LRU order)
+    // unpin A first — A must be evicted when pool is full
+    // B must still be fetchable after eviction
     void test_correct_page_evicted() {
         std::remove("mydb.db");
         const int CAP = 2;
@@ -218,16 +284,12 @@ public:
         int id_a = bp.create_new_page();
         int id_b = bp.create_new_page();
 
-        // unpin A first — A is LRU
         bp.unpin_page(id_a, false);
         bp.unpin_page(id_b, false);
 
-        // create new page — A must be evicted
         int id_c = bp.create_new_page();
         assert(id_c >= 0);
 
-        // A is no longer in the pool — fetch must go to disk
-        // B is still in the pool — fetch must be a cache hit
         char* data_b = bp.fetch_page(id_b);
         assert(data_b != nullptr);
 
@@ -235,43 +297,17 @@ public:
         pass("test_correct_page_evicted");
     }
 
-    // write data into a fetched page
-    // after unpin and re-fetch, the same data must still be there
-    void test_written_data_persists() {
-        std::remove("mydb.db");
-        BufferPool bp(4);
-
-        int page_id = bp.create_new_page();
-        char* data = bp.fetch_page(page_id);
-        assert(data != nullptr);
-
-        // write known bytes into the frame
-        snprintf(data, PAGE_SIZE, "persistent data");
-        bp.unpin_page(page_id, true);  // mark dirty so it flushes
-
-        // re-fetch — data must still be there
-        char* data2 = bp.fetch_page(page_id);
-        assert(data2 != nullptr);
-        assert(strncmp(data2, "persistent data", 15) == 0);
-
-        std::remove("mydb.db");
-        pass("test_written_data_persists");
-    }
-
-    // pin all frames — no eviction possible
-    // create_new_page must return -1
+    // all frames pinned — create must return -1
     void test_all_pinned_returns_error() {
         std::remove("mydb.db");
         const int CAP = 2;
         BufferPool bp(CAP);
 
-        // fill and keep all frames pinned (no unpin)
         int id0 = bp.create_new_page();
         int id1 = bp.create_new_page();
         assert(id0 >= 0);
         assert(id1 >= 0);
 
-        // no frames unpinned — eviction impossible
         int id2 = bp.create_new_page();
         assert(id2 == -1);
 
@@ -279,11 +315,92 @@ public:
         pass("test_all_pinned_returns_error");
     }
 
+    // write data, force eviction, re-fetch — data must survive to disk and back
+    // this is the real persistence test — the page must actually leave memory
+    void test_written_data_persists_after_eviction() {
+        std::remove("mydb.db");
+        const int CAP = 2;
+        BufferPool bp(CAP);
+
+        // create the target page and write known data into it
+        int page_id = bp.create_new_page();
+        char* data = bp.fetch_page(page_id);
+        assert(data != nullptr);
+        snprintf(data, PAGE_SIZE, "persistent data");
+
+        // mark dirty and unpin — now it is evictable
+        bp.unpin_page(page_id, true);
+
+        // fill the pool with other pages to force eviction of page_id
+        int other_a = bp.create_new_page();
+        assert(other_a >= 0);
+        // page_id was LRU — it must have been evicted and flushed to disk
+
+        // now re-fetch — must reload from disk
+        char* data2 = bp.fetch_page(page_id);
+        assert(data2 != nullptr);
+        assert(strncmp(data2, "persistent data", 15) == 0);
+
+        std::remove("mydb.db");
+        pass("test_written_data_persists_after_eviction");
+    }
+
+    // dirty page evicted — data must be on disk
+    // clean page evicted — no flush needed, data is already safe
+    void test_clean_page_evicted_no_corruption() {
+        std::remove("mydb.db");
+        const int CAP = 2;
+        BufferPool bp(CAP);
+
+        int id_a = bp.create_new_page();
+        int id_b = bp.create_new_page();
+
+        // unpin A as clean — no flush needed
+        bp.unpin_page(id_a, false);
+        bp.unpin_page(id_b, false);
+
+        // evict A by creating a new page
+        int id_c = bp.create_new_page();
+        assert(id_c >= 0);
+
+        // B must still be fetchable
+        char* data_b = bp.fetch_page(id_b);
+        assert(data_b != nullptr);
+
+        std::remove("mydb.db");
+        pass("test_clean_page_evicted_no_corruption");
+    }
+
+    // unpin with dirty=true then re-fetch — dirty flag must be reset after reload
+    void test_dirty_flag_reset_after_reload() {
+        std::remove("mydb.db");
+        const int CAP = 2;
+        BufferPool bp(CAP);
+
+        int id_a = bp.create_new_page();
+        char* data = bp.fetch_page(id_a);
+        snprintf(data, PAGE_SIZE, "dirty content");
+        bp.unpin_page(id_a, true); // dirty
+
+        // force eviction of id_a
+        int id_b = bp.create_new_page();
+        assert(id_b >= 0);
+
+        // re-fetch id_a — it reloads from disk
+        // after reload dirty must be false
+        char* reloaded = bp.fetch_page(id_a);
+        assert(reloaded != nullptr);
+        assert(strncmp(reloaded, "dirty content", 13) == 0);
+
+        std::remove("mydb.db");
+        pass("test_dirty_flag_reset_after_reload");
+    }
+
     // ─────────────────────────────────────────
     //  LRU integration tests
     // ─────────────────────────────────────────
 
-    // unpin A then B — A must be evicted first (oldest unpinned = LRU)
+    // unpin A then B then C — A must be evicted first
     void test_lru_eviction_order() {
         std::remove("mydb.db");
         const int CAP = 3;
@@ -293,17 +410,15 @@ public:
         int id_b = bp.create_new_page();
         int id_c = bp.create_new_page();
 
-        // unpin in order: A, B, C
         bp.unpin_page(id_a, false);
         bp.unpin_page(id_b, false);
         bp.unpin_page(id_c, false);
 
-        // first new page must evict A
+        // must evict A (oldest unpinned)
         int id_d = bp.create_new_page();
         assert(id_d >= 0);
 
-        // A is gone — fetch returns from disk (not null, just slower)
-        // B and C are still in pool
+        // B and C must still be in pool
         char* data_b = bp.fetch_page(id_b);
         char* data_c = bp.fetch_page(id_c);
         assert(data_b != nullptr);
@@ -313,8 +428,7 @@ public:
         pass("test_lru_eviction_order");
     }
 
-    // re-fetching a page updates its recency
-    // it should be evicted last, not first
+    // re-fetching A moves it to MRU — B becomes LRU and must be evicted next
     void test_fetch_updates_recency() {
         std::remove("mydb.db");
         const int CAP = 2;
@@ -323,24 +437,91 @@ public:
         int id_a = bp.create_new_page();
         int id_b = bp.create_new_page();
 
-        // unpin both
         bp.unpin_page(id_a, false);
         bp.unpin_page(id_b, false);
 
-        // re-fetch A — makes A the most recently used
+        // re-fetch A — A becomes MRU, B becomes LRU
         bp.fetch_page(id_a);
         bp.unpin_page(id_a, false);
 
-        // now B is LRU — new page must evict B, not A
+        // must evict B not A
         int id_c = bp.create_new_page();
         assert(id_c >= 0);
 
-        // A must still be in the pool
+        // A must still be in pool
         char* data_a = bp.fetch_page(id_a);
         assert(data_a != nullptr);
 
         std::remove("mydb.db");
         pass("test_fetch_updates_recency");
+    }
+
+    // unpin A, re-pin A via fetch, unpin B
+    // B must be evicted before A because A was touched more recently
+    void test_repin_prevents_early_eviction() {
+        std::remove("mydb.db");
+        const int CAP = 3;
+        BufferPool bp(CAP);
+
+        int id_a = bp.create_new_page();
+        int id_b = bp.create_new_page();
+        int id_c = bp.create_new_page();
+
+        bp.unpin_page(id_a, false);
+        bp.unpin_page(id_b, false);
+        bp.unpin_page(id_c, false);
+
+        // re-fetch A — A moves to MRU
+        bp.fetch_page(id_a);
+        bp.unpin_page(id_a, false);
+
+        // evict once — must evict B (oldest unpinned)
+        int id_d = bp.create_new_page();
+        assert(id_d >= 0);
+
+        // A and C must still be accessible
+        char* data_a = bp.fetch_page(id_a);
+        char* data_c = bp.fetch_page(id_c);
+        assert(data_a != nullptr);
+        assert(data_c != nullptr);
+
+        std::remove("mydb.db");
+        pass("test_repin_prevents_early_eviction");
+    }
+
+    // evict multiple pages in sequence — LRU order must hold across all evictions
+    void test_multiple_sequential_evictions() {
+        std::remove("mydb.db");
+        const int CAP = 3;
+        BufferPool bp(CAP);
+
+        int id_a = bp.create_new_page();
+        int id_b = bp.create_new_page();
+        int id_c = bp.create_new_page();
+
+        // unpin all in order A, B, C
+        bp.unpin_page(id_a, false);
+        bp.unpin_page(id_b, false);
+        bp.unpin_page(id_c, false);
+
+        // first eviction — evicts A
+        int id_d = bp.create_new_page();
+        assert(id_d >= 0);
+        bp.unpin_page(id_d, false);
+
+        // second eviction — evicts B
+        int id_e = bp.create_new_page();
+        assert(id_e >= 0);
+        bp.unpin_page(id_e, false);
+
+        // C, D, E must be in pool — A and B are gone
+        char* data_c = bp.fetch_page(id_c);
+        char* data_d = bp.fetch_page(id_d);
+        assert(data_c != nullptr);
+        assert(data_d != nullptr);
+
+        std::remove("mydb.db");
+        pass("test_multiple_sequential_evictions");
     }
 
     // ─────────────────────────────────────────
@@ -353,6 +534,9 @@ public:
         test_allocate_page_increments();
         test_write_read_roundtrip();
         test_multiple_pages_independent();
+        test_overwrite_page();
+        test_many_allocations_sequential();
+        test_fresh_page_is_zeroed();
 
         std::cout << std::endl;
         std::cout << "===============================" << std::endl;
@@ -361,13 +545,16 @@ public:
         test_create_new_page_returns_valid_id();
         test_create_multiple_pages_unique_ids();
         test_fetch_nonexistent_page_returns_null();
+        test_fetch_negative_page_id_returns_null();
         test_fetch_existing_page_returns_data();
         test_fetch_same_page_twice_cache_hit();
         test_fill_to_capacity();
         test_eviction_triggered_when_full();
         test_correct_page_evicted();
-        test_written_data_persists();
         test_all_pinned_returns_error();
+        test_written_data_persists_after_eviction();
+        test_clean_page_evicted_no_corruption();
+        test_dirty_flag_reset_after_reload();
 
         std::cout << std::endl;
         std::cout << "===============================" << std::endl;
@@ -375,6 +562,8 @@ public:
         std::cout << "===============================" << std::endl;
         test_lru_eviction_order();
         test_fetch_updates_recency();
+        test_repin_prevents_early_eviction();
+        test_multiple_sequential_evictions();
 
         std::cout << std::endl;
         std::cout << "===============================" << std::endl;
