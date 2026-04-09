@@ -1,112 +1,156 @@
-#include "buffer-pool.h"
-#include "page.h"
+#include "../include/buffer-pool.h"
+#include "../include/lru.h"
+#include "../include/disk-manager.h"
 #include <unordered_map>
 #include <iostream>
+#include <string>
+#include <unordered_map>
 
-BufferPool::BufferPool(const int capacity) {
-    this->capacity = capacity;
-    this->head = new Page();
-    this->tail = new Page();
-    this->utail = new Page();
-    this->uhead = new Page();
-
-    // link tail and head
-    this->tail->prev = this->head;
-    this->head->next = this->tail;
-    this->utail->uprev = this->uhead;
-    this->uhead->unext = this->utail;
-
-    this->map = std::unordered_map<int, Page*>();
-    this->unpinned_map = std::unordered_map<int, Page*>();
-}
-// when get a key, the key becomes the most recently used -> need to move it to the front
-int BufferPool::get(int key) {
-    if (this->map.find(key) == this->map.end()) { // go to the end
-        return -1;
+BufferPool::BufferPool(const int capacity) : capacity(capacity) {
+    for (int i = 0; i < capacity; i++) {
+       this->free_frame_list.push_back(i);
     }
-
-    // move the get node to the front MRU
-    Page * page = this->map[key];
-    this->remove_page(page);
-    this->push_head(page);
-    return page->getValue();
+    this->replacer = new LRU(capacity);
+    const std::string DB_FILENAME = "mydb.db";
+    this->disk = new DiskManager(DB_FILENAME);
+    this->page_table = {};
+    this->frames.resize(capacity);
 }
 
-void BufferPool::pin(int key, int value) {
-    // 3 cases to handle:
-    // case 1: key already exist -> move to MRU
-    if (this->map.find(key) != this->map.end()) {
-        Page* p = this->map[key];
-        p->setValue(value);
-        this->remove_page(this->map[key]);
-        this->push_head(this->map[key]);
-
-        if (!p->pinned) {
-            this->remove_unpin(p);
-            this->unpinned_map.erase(key);
+int BufferPool::create_new_page() {
+    int page_id = this->disk->allocate_page();
+    int frame_id = -1; // set a sentinel value for frame_id
+    // frames is full
+    if (this->free_frame_list.empty()) {
+        bool is_evictable = this->replacer->evict(frame_id); // frame_id will be init here
+        if (!is_evictable) {
+            std::cout << "The frame id " + std::to_string(frame_id) +
+                            " is not evictable !"
+                    << std::endl;
+            return -1;
         }
+
+        // update the page id correspond to the old frame
+        int old_page_id = this->frames[frame_id].get_pid();
+
+        // check if the frame correspond with the old page in buffer is dirty first
+        if (this->frames[frame_id].get_dirty()) {
+            this->flush_page(old_page_id);
+        }
+
+        this->page_table.erase(old_page_id);
+
+        // mapping new page_id with a free frame_id
+        this->page_table[page_id] = frame_id;
+        this->frames[frame_id].set_pid(page_id);
+    } else {
+        // if there are still free frames in the buffer pool
+        frame_id = this->free_frame_list.back();
+        this->free_frame_list.pop_back();
+
+        // match the frame in the free_frame with the new created page
+        this->page_table.insert({page_id, frame_id});
+        this->frames[frame_id].set_dirty(false);
+        this->frames[frame_id].set_pid(page_id);
     }
-    // case 2: new key, cache not full -> add
-    else if (this->map.size() < this->capacity) {
-        Page* p = new Page(key, value);
-        this->push_head(p);
-        this->map[key] = p;
-        p->pinned = true;
+    this->replacer->pin(frame_id);
+    return page_id;
+}
+
+// this function is opposite to the create_new_page
+char* BufferPool::fetch_page(int page_id) {
+    // check if cache hit
+    if (this->page_table.count(page_id)) {
+        int frame_id = this->page_table[page_id];
+        this->replacer->pin(frame_id);
+        return this->frames[frame_id].get_data();
     }
-    // case 3: new key, cache full -> evict LRU and add
+    // if the page_id does not exist
+    // pick a free frame_id or evict one
+    if (!this->free_frame_list.empty()) {
+        int frame_id = this->free_frame_list.back();
+        Frame* frame = &this->frames[frame_id];
+        frame->set_pid(page_id);
+        frame->set_dirty(false);
+        this->free_frame_list.pop_back();
+
+        // write the new page to disk
+        this->disk->read_page(page_id, frame->get_data());
+        this->replacer->pin(frame_id);
+        this->page_table[page_id] = frame_id;
+        return frame->get_data();
+    }
+    // else if buffer pool has no free frame left -> evict one using replacer
     else {
-        // evict lru
-        Page* p = this->tail->prev;
-        if (p == this->head) {
-            std::cout << "ALL PAGES ARE PINNED" << std::endl;
-            return;
-        }
-        if (!p->pinned) {
-            this->remove_unpin(p);
-            this->unpinned_map.erase(p->getKey());
-        }
-        this->remove_page(p);
-        this->map.erase(p->getKey());
-        delete p;
+        int frame_id = 0; // init with a sentinal value
+        // if the frame is already dirty, write the old data into the disk first
 
-        // add new node
-        Page* np = new Page(key, value);
-        np->pinned = true;
-        this->map.insert({key, np});
-        this->push_head(np);
+        bool can_evict = this->replacer->evict(frame_id);
+        if (!can_evict) {
+            std::cout << "Replacer can not evict frame " +  std::to_string(frame_id) << std::endl;
+            return nullptr;
+        }
+        // after evict, then the frame_id has read value
+        // if the frame is dirty, it need to flush to disk first
+        int current_page_id = this->frames[frame_id].get_pid();
+        if (this->frames[frame_id].get_dirty()) {
+            // get the currect page_id, not the page_id in param
+            // page_id in param is a new page_id
+            this->flush_page(current_page_id);
+        }
+        this->page_table.erase(current_page_id);
+
+        Frame* new_frame = &this->frames[frame_id];
+        new_frame->set_pid(page_id);
+        new_frame->set_dirty(false);
+
+        std::cout << std::to_string(frame_id) + " has been successfully evicted !" << std::endl;
+        this->disk->read_page(page_id, this->frames[frame_id].get_data());
+        this->replacer->pin(frame_id);
+        this->page_table[page_id] = frame_id;
+        return this->frames[frame_id].get_data();
     }
 }
 
-void BufferPool::unpin(Page* p) {
-    p->pinned = false;
-    this->unpinned_map.insert({p->getKey(), p});
+/*
+ * Flush a frame in buffer pool into disk
+ */
+void BufferPool::flush_page(int page_id) {
+    auto iter = this->page_table.find(page_id);
+    if (iter == this->page_table.end()) {
+        std::cout << "PAGE ID" + std::to_string(page_id) + "CANNOT FOUND WHILE FLUSHING PAGE" << std::endl;
+    } else {
+        int frame_id = iter->second;
+        Frame* target_frame = &this->frames[frame_id];
 
-    p->unext = uhead->unext;
-    p->uprev = uhead;
-
-    uhead->unext->uprev = p;
-    uhead->unext = p;
+        // write of the page_id into disk
+        this->disk->write_page(page_id, target_frame->get_data());
+        target_frame->set_dirty(false);
+    }
 }
 
-void BufferPool::remove_page(Page* node) {
-    node->prev->next = node->next;
-    node->next->prev = node->prev;
-}
+void BufferPool::unpin_page(int page_id, bool is_dirty) {
+    if (!this->page_table.count(page_id)) return; // do nothing
+    else {
+        int frame_id = this->page_table.find(page_id)->second;
+        Frame* target_frame = &this->frames[frame_id];
 
-void BufferPool::remove_unpin(Page * p) {
-    p->uprev->unext = p->unext;
-    p->unext->uprev = p->uprev;
-}
+        if (target_frame->get_pin_count() == 0) return;
+        target_frame->set_pin_count(this->frames[frame_id].get_pin_count()-1);
 
-// push to head
-void BufferPool::push_head(Page* page) {
-    page->next = head->next; // point to the old first node
-    page->prev = head;
-    head->next->prev = page;
-    head->next = page;
+        if (is_dirty) {
+            target_frame->set_dirty(true);
+        }
+
+        if (target_frame->get_pin_count() == 0) {
+            this->replacer->unpin(frame_id);
+        }
+    }
 }
 
 BufferPool::~BufferPool() {
-    unpinned_map.clear();
-    map.clear();
+    this->free_frame_list.clear();
+    this->page_table.clear();
+    delete this->disk;
+    delete this->replacer;
 }

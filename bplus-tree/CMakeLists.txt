@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.20)
 project(dbms)
-
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
@@ -15,15 +15,17 @@ file(GLOB_RECURSE SOURCES
 )
 
 # ─── Main executable (benchmark) ───
-add_executable(dbms
-    ${SOURCES}
-    ${CMAKE_SOURCE_DIR}/benchmark/benchmark.cpp
-)
+# add_executable(dbms
+#     ${SOURCES}
+#     ${CMAKE_SOURCE_DIR}/benchmark/benchmark.cpp
+# )
 
 # ─── Tests executable ───
 add_executable(tests
-    ${SOURCES}
-    ${CMAKE_SOURCE_DIR}/tests/test_lru.cpp
-    ${CMAKE_SOURCE_DIR}/tests/test_buffer_pool.cpp
-    ${CMAKE_SOURCE_DIR}/tests/test_bplus_tree.cpp
+     ${SOURCES}
+     ${CMAKE_SOURCE_DIR}/tests/include/test-lru.h
+     ${CMAKE_SOURCE_DIR}/tests/include/test-buffer-pool.h
+     ${CMAKE_SOURCE_DIR}/tests/test-lru.cpp
+     ${CMAKE_SOURCE_DIR}/tests/test-buffer-pool.cpp
+     ${CMAKE_SOURCE_DIR}/tests/main.cpp
 )
