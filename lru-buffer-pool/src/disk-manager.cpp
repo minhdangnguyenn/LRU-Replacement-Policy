@@ -1,8 +1,7 @@
-#include "disk-manager.h"
+#include "../include/disk-manager.h"
 #include <iostream>
 #include <fstream>
-#include <cstring>
-#include "test-data.h"
+#include "../include/test-data.h"
 
 DiskManager::DiskManager(const std::string& filename) : filename_(filename) {
     file_.open(filename, std::ios::in|std::ios::out|std::ios::binary);
