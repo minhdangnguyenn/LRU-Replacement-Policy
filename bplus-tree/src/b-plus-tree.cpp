@@ -7,7 +7,9 @@ BPlusTree::BPlusTree(BufferPool *bp, int inner_cap)
 }
 
 int BPlusTree::lookup(int key) {
-  std::cout << "NOT IMPLEMENTED YET" << std::endl;
+  // std::cout << "NOT IMPLEMENTED YET" << std::endl;
+  if (key >= this->root_page_id) {
+  }
   return 0;
 }
 
