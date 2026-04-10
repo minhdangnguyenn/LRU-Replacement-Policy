@@ -9,10 +9,6 @@ private:
     char data[PAGE_SIZE];
 
 public:
-    // Page* prev = nullptr;
-    // Page* next = nullptr;
-    // Page* uprev = nullptr;
-    // Page* unext = nullptr;
     char* get_data();
 
     int get_key() const;
@@ -27,11 +23,7 @@ public:
         key(key),
         value(value),
         pinned(false) {}
-        // prev(nullptr),
-        // next(nullptr),
-        // uprev(nullptr),
-        // unext(nullptr) {}
-    ~Page() = default;
+        ~Page() = default;
 };
 
 #endif
