@@ -18,9 +18,12 @@
 
 // #define TIMER_END(ops) \
 //     auto _t1 = std::chrono::high_resolution_clock::now(); \
-//     long long elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(_t1 - _t0).count(); \
-//     long long elapsed_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(_t1 - _t0).count(); \
-//     long long ns_per_op  = (ops) > 0 ? elapsed_ns / (ops) : 0;
+//     long long elapsed_ms =
+//     std::chrono::duration_cast<std::chrono::milliseconds>(_t1 - _t0).count();
+//     \
+//     long long elapsed_ns =
+//     std::chrono::duration_cast<std::chrono::nanoseconds>(_t1 - _t0).count();
+//     \ long long ns_per_op  = (ops) > 0 ? elapsed_ns / (ops) : 0;
 
 // // ─────────────────────────────────────────
 // //  CSV EXPORT
@@ -84,13 +87,13 @@
 //     assert(!lru.evict(frame_id)); ops++;     // truly empty
 //     lru.pin(1); ops++;
 //     lru.pin(2); ops++;
-//     assert(!lru.evict(frame_id)); ops++;     // all pinned — still nothing evictable
-//     assert(lru.Size() == 0);
+//     assert(!lru.evict(frame_id)); ops++;     // all pinned — still nothing
+//     evictable assert(lru.Size() == 0);
 
 //     TIMER_END(ops)
 
-//     write_csv_row(csv, "LRU Evict Empty", "LRU-TEST", CAP, ops, CAP, elapsed_ms, ns_per_op);
-//     pass("LRU Evict Empty");
+//     write_csv_row(csv, "LRU Evict Empty", "LRU-TEST", CAP, ops, CAP,
+//     elapsed_ms, ns_per_op); pass("LRU Evict Empty");
 // }
 
 // // Mirrors: test_update_existing
@@ -124,8 +127,8 @@
 
 //     TIMER_END(ops)
 
-//     write_csv_row(csv, "LRU Unpin Then Evict", "LRU-TEST", CAP, ops, CAP, elapsed_ms, ns_per_op);
-//     pass("LRU Unpin Then Evict");
+//     write_csv_row(csv, "LRU Unpin Then Evict", "LRU-TEST", CAP, ops, CAP,
+//     elapsed_ms, ns_per_op); pass("LRU Unpin Then Evict");
 // }
 
 // // Mirrors: test_capacity_one
@@ -155,8 +158,8 @@
 
 //     TIMER_END(ops)
 
-//     write_csv_row(csv, "LRU Capacity One", "LRU-TEST", CAP, ops, 2, elapsed_ms, ns_per_op);
-//     pass("LRU Capacity One");
+//     write_csv_row(csv, "LRU Capacity One", "LRU-TEST", CAP, ops, 2,
+//     elapsed_ms, ns_per_op); pass("LRU Capacity One");
 // }
 
 // // Mirrors: test_get_updates_recency
@@ -192,8 +195,8 @@
 
 //     TIMER_END(ops)
 
-//     write_csv_row(csv, "LRU Pin Updates Recency", "LRU-TEST", CAP, ops, 2, elapsed_ms, ns_per_op);
-//     pass("LRU Pin Updates Recency");
+//     write_csv_row(csv, "LRU Pin Updates Recency", "LRU-TEST", CAP, ops, 2,
+//     elapsed_ms, ns_per_op); pass("LRU Pin Updates Recency");
 // }
 
 // // Mirrors: test_miss
@@ -214,8 +217,8 @@
 
 //     TIMER_END(ops)
 
-//     write_csv_row(csv, "LRU Evict Miss", "LRU-TEST", CAP, ops, 3, elapsed_ms, ns_per_op);
-//     pass("LRU Evict Miss");
+//     write_csv_row(csv, "LRU Evict Miss", "LRU-TEST", CAP, ops, 3, elapsed_ms,
+//     ns_per_op); pass("LRU Evict Miss");
 // }
 
 // // ─────────────────────────────────────────
@@ -248,8 +251,8 @@
 
 //     TIMER_END(ops)
 
-//     write_csv_row(csv, "LRU Many Evictions", "LRU-TEST", CAP, ops, 100, elapsed_ms, ns_per_op);
-//     pass("LRU Many Evictions");
+//     write_csv_row(csv, "LRU Many Evictions", "LRU-TEST", CAP, ops, 100,
+//     elapsed_ms, ns_per_op); pass("LRU Many Evictions");
 // }
 
 // // Mirrors: test_get_prevents_eviction
@@ -290,8 +293,8 @@
 
 //     TIMER_END(ops)
 
-//     write_csv_row(csv, "LRU Pin Prevents Eviction", "LRU-TEST", CAP, ops, 4, elapsed_ms, ns_per_op);
-//     pass("LRU Pin Prevents Eviction");
+//     write_csv_row(csv, "LRU Pin Prevents Eviction", "LRU-TEST", CAP, ops, 4,
+//     elapsed_ms, ns_per_op); pass("LRU Pin Prevents Eviction");
 // }
 
 // // Mirrors: test_alternating_operations
@@ -321,8 +324,8 @@
 
 //     TIMER_END(ops)
 
-//     write_csv_row(csv, "LRU Alternating Operations", "LRU-TEST", CAP, ops, 4, elapsed_ms, ns_per_op);
-//     pass("LRU Alternating Operations");
+//     write_csv_row(csv, "LRU Alternating Operations", "LRU-TEST", CAP, ops, 4,
+//     elapsed_ms, ns_per_op); pass("LRU Alternating Operations");
 // }
 
 // // Mirrors: test_repeated_updates
@@ -346,8 +349,8 @@
 
 //     TIMER_END(ops)
 
-//     write_csv_row(csv, "LRU Duplicate Unpin", "LRU-TEST", CAP, ops, 1, elapsed_ms, ns_per_op);
-//     pass("LRU Duplicate Unpin");
+//     write_csv_row(csv, "LRU Duplicate Unpin", "LRU-TEST", CAP, ops, 1,
+//     elapsed_ms, ns_per_op); pass("LRU Duplicate Unpin");
 // }
 
 // // Mirrors: test_no_eviction_needed
@@ -374,8 +377,8 @@
 
 //     TIMER_END(ops)
 
-//     write_csv_row(csv, "LRU No Eviction Needed", "LRU-TEST", CAP, ops, 5, elapsed_ms, ns_per_op);
-//     pass("LRU No Eviction Needed");
+//     write_csv_row(csv, "LRU No Eviction Needed", "LRU-TEST", CAP, ops, 5,
+//     elapsed_ms, ns_per_op); pass("LRU No Eviction Needed");
 // }
 
 // // Mirrors: test_large_capacity
@@ -406,8 +409,8 @@
 
 //     TIMER_END(ops)
 
-//     write_csv_row(csv, "LRU Large Capacity", "LRU-TEST", CAP, ops, CAP, elapsed_ms, ns_per_op);
-//     pass("LRU Large Capacity");
+//     write_csv_row(csv, "LRU Large Capacity", "LRU-TEST", CAP, ops, CAP,
+//     elapsed_ms, ns_per_op); pass("LRU Large Capacity");
 // }
 
 // // ─────────────────────────────────────────
@@ -442,8 +445,8 @@
 
 //     TIMER_END(ops)
 
-//     write_csv_row(csv, "LRU Stress Evictions", "LRU-TEST", CAP, ops, KEY_RANGE, elapsed_ms, ns_per_op);
-//     pass("LRU Stress Evictions");
+//     write_csv_row(csv, "LRU Stress Evictions", "LRU-TEST", CAP, ops,
+//     KEY_RANGE, elapsed_ms, ns_per_op); pass("LRU Stress Evictions");
 // }
 
 // // Mirrors: test_stress_repeated_updates
@@ -472,8 +475,8 @@
 
 //     TIMER_END(ops)
 
-//     write_csv_row(csv, "LRU Stress Repeated Updates", "LRU-TEST", CAP, ops, CAP, elapsed_ms, ns_per_op);
-//     pass("LRU Stress Repeated Updates");
+//     write_csv_row(csv, "LRU Stress Repeated Updates", "LRU-TEST", CAP, ops,
+//     CAP, elapsed_ms, ns_per_op); pass("LRU Stress Repeated Updates");
 // }
 
 // // Mirrors: test_stress_mixed
@@ -522,8 +525,8 @@
 
 //     TIMER_END(ops)
 
-//     write_csv_row(csv, "LRU Stress Mixed", "LRU-TEST", CAP, ops, 750, elapsed_ms, ns_per_op);
-//     pass("LRU Stress Mixed");
+//     write_csv_row(csv, "LRU Stress Mixed", "LRU-TEST", CAP, ops, 750,
+//     elapsed_ms, ns_per_op); pass("LRU Stress Mixed");
 // }
 
 // // Mirrors: test_stress_large_capacity
@@ -541,8 +544,8 @@
 //     assert(lru.Size() == 0);
 
 //     // unpin last 1,000 frames
-//     for (int i = KEY_RANGE - 1000; i < KEY_RANGE; i++) { lru.unpin(i); ops++; }
-//     assert(lru.Size() == 1000);
+//     for (int i = KEY_RANGE - 1000; i < KEY_RANGE; i++) { lru.unpin(i); ops++;
+//     } assert(lru.Size() == 1000);
 
 //     // evict all 1,000 in LRU order
 //     for (int i = KEY_RANGE - 1000; i < KEY_RANGE; i++) {
@@ -554,8 +557,8 @@
 
 //     TIMER_END(ops)
 
-//     write_csv_row(csv, "LRU Stress Large Capacity", "LRU-TEST", CAP, ops, KEY_RANGE, elapsed_ms, ns_per_op);
-//     pass("LRU Stress Large Capacity");
+//     write_csv_row(csv, "LRU Stress Large Capacity", "LRU-TEST", CAP, ops,
+//     KEY_RANGE, elapsed_ms, ns_per_op); pass("LRU Stress Large Capacity");
 // }
 
 // // ═════════════════════════════════════════
@@ -745,9 +748,10 @@
 //     }
 //     auto end = std::chrono::high_resolution_clock::now();
 
-//     auto ms  = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
-//     auto ns  = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count();
-//     auto npo = ns / operations;
+//     auto ms  = std::chrono::duration_cast<std::chrono::milliseconds>(end -
+//     start).count(); auto ns  =
+//     std::chrono::duration_cast<std::chrono::nanoseconds>(end -
+//     start).count(); auto npo = ns / operations;
 
 //     std::cout << "[O(1)]  " << name << std::endl;
 //     std::cout << "  Operations : " << operations << std::endl;
@@ -781,9 +785,10 @@
 //     }
 //     auto end = std::chrono::high_resolution_clock::now();
 
-//     auto ms  = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
-//     auto ns  = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count();
-//     auto npo = ns / operations;
+//     auto ms  = std::chrono::duration_cast<std::chrono::milliseconds>(end -
+//     start).count(); auto ns  =
+//     std::chrono::duration_cast<std::chrono::nanoseconds>(end -
+//     start).count(); auto npo = ns / operations;
 
 //     std::cout << "[NAIVE] " << name << std::endl;
 //     std::cout << "  Operations : " << operations << std::endl;
@@ -793,7 +798,8 @@
 //     std::cout << "  Per op     : " << npo        << " ns" << std::endl;
 //     std::cout << std::endl;
 
-//     write_csv_row(csv, name, "NAIVE", capacity, operations, key_range, ms, npo);
+//     write_csv_row(csv, name, "NAIVE", capacity, operations, key_range, ms,
+//     npo);
 // }
 
 // void compare(
@@ -822,16 +828,17 @@
 //         snprintf(buf, PAGE_SIZE, "%s", TEST_STRING);
 //         dm.writePage(id, buf);
 //         std::cout << "wrote to page: " << id << std::endl;
-//         std::cout << "first 20 chars written: " << std::string(buf, 20) << std::endl;
+//         std::cout << "first 20 chars written: " << std::string(buf, 20) <<
+//         std::endl;
 //     }
 //     {
 //         DiskManager dm("test.db");
 //         char buf[PAGE_SIZE];
 //         memset(buf, 0, PAGE_SIZE);
 //         dm.readPage(0, buf);
-//         std::cout << "first 20 chars read: " << std::string(buf, 20) << std::endl;
-//         std::cout << "match: " << (strcmp(buf, TEST_STRING) == 0) << std::endl;
-//         assert(strcmp(buf, TEST_STRING) == 0);
+//         std::cout << "first 20 chars read: " << std::string(buf, 20) <<
+//         std::endl; std::cout << "match: " << (strcmp(buf, TEST_STRING) == 0)
+//         << std::endl; assert(strcmp(buf, TEST_STRING) == 0);
 //     }
 //     std::remove("test.db");
 //     pass("Disk Write Read");
@@ -914,9 +921,10 @@
 //     compare("Medium cache - normal use",     1000,    5000000, 2000,    csv);
 //     compare("Large cache - high eviction",   100,     5000000, 100000,  csv);
 
-//     std::cout << "--- Large cache, low eviction (O(1) only) ---" << std::endl;
-//     benchmark("Large cache - low eviction",  100000,  5000000, 100000,  csv);
-//     benchmark("Massive cache",              1000000, 5000000, 1000000, csv);
+//     std::cout << "--- Large cache, low eviction (O(1) only) ---" <<
+//     std::endl; benchmark("Large cache - low eviction",  100000,  5000000,
+//     100000,  csv); benchmark("Massive cache",              1000000, 5000000,
+//     1000000, csv);
 
 //     csv.close();
 //     std::cout << std::endl;
@@ -929,7 +937,8 @@
 //     test_disk_write_read();
 
 //     auto run_end = std::chrono::high_resolution_clock::now();
-//     long long total_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+//     long long total_ms =
+//     std::chrono::duration_cast<std::chrono::milliseconds>(
 //         run_end - run_start).count();
 
 //     std::cout << "===============================" << std::endl;

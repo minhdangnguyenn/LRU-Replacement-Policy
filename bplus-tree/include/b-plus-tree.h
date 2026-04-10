@@ -11,6 +11,7 @@ struct Node {
   NodeType type;
   std::vector<Node *> children_nodes;
   std::vector<int> keys;
+  int value;
   Node *next_node;
   Node(NodeType type = NodeType::LEAF) : type(type) {
     this->next_node = nullptr;
