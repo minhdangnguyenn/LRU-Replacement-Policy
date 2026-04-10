@@ -64,6 +64,7 @@ int BufferPool::create_new_page() {
 
 // this function is opposite to the create_new_page
 char *BufferPool::fetch_page(int page_id) {
+  // no page exist
   if (this->page_table.empty()) {
     return nullptr;
   }

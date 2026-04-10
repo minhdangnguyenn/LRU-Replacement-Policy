@@ -1,9 +1,8 @@
 #include "../include/b-plus-tree.h"
 #include <iostream>
-#include <ostream>
 
-BPlusTree::BPlusTree(BufferPool *bp, int order)
-    : buffer_pool(bp), order(order), root_page_id(-1) {
+BPlusTree::BPlusTree(BufferPool *bp, int inner_cap)
+    : buffer_pool(bp), inner_cap(inner_cap), root_page_id(-1) {
   root_page_id = buffer_pool->create_new_page();
 }
 
@@ -13,7 +12,8 @@ int BPlusTree::lookup(int key) {
 }
 
 void BPlusTree::insert(int key, int page_id) {
-  std::cout << "NOT IMPLEMENTED YET" << std::endl;
+  // std::cout << "NOT IMPLEMENTED YET" << std::endl;
+  char *data = this->buffer_pool->fetch_page(page_id);
 }
 
 void BPlusTree::remove(int key) {
