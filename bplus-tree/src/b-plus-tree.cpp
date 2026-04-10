@@ -38,3 +38,10 @@ void BPlusTree::remove(int key) {
 void BPlusTree::range_scan(int low, int high, std::vector<int> &results) {
   std::cout << "NOT IMPLEMENTED YET" << std::endl;
 }
+
+BPlusTree::~BPlusTree() {
+  this->inner_cap = -1;
+  this->root_page_id = -1;
+  this->nodes.clear();
+  delete buffer_pool;
+}
