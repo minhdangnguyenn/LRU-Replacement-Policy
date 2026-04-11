@@ -142,7 +142,33 @@ void BPlusTree::insert(int key, int page_id) {
 }
 
 void BPlusTree::remove(int key) {
-  std::cout << "NOT IMPLEMENTED YET" << std::endl;
+
+  // traverse down to the leaf node
+  Node *current_node = this->root_node;
+  while (current_node->type == NodeType::INNER) {
+    // find child idx of the current node
+    // check comment in bplus-tree.h
+    int child_idx = current_node->traverse(key);
+    // after traverse -> get the idx of child node (leaf node)
+    // traverse down, assign current node as the child node
+    // after traverse. current_node is a leaf node
+    current_node = current_node->children_nodes[child_idx];
+  }
+
+  // search inside leaf for key
+  for (int i = 0; i < current_node->keys.size(); i++) {
+    if (current_node->keys[i] == key) {
+        current_node->keys.erase(current_node->keys.begin() + i);
+        current_node->values.erase(current_node->values.begin() + i);
+        break;
+    }
+  }
+
+  // check if underfull
+  // if underfull then
+  if (current_node->keys.size() <= node_cap/2) {
+      return;
+  }
 }
 
 void BPlusTree::range_scan(int low, int high, std::vector<int> &results) {
