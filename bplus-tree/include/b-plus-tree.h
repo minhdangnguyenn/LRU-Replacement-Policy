@@ -52,7 +52,7 @@ struct Node {
 class BPlusTree : public IndexStrategy {
 public:
   BPlusTree(BufferPool *bp, int node_capacity);
-  ~BPlusTree();
+  ~BPlusTree() = default;
   int lookup(int key) override;
   void insert(int key, int page_id) override;
   void remove(int key) override;

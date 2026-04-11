@@ -350,6 +350,9 @@ void TestBPlusTree::test_insert_boundary_keys() {
 
 void TestBPlusTree::run_all() {
   std::cout << "===============================" << std::endl;
+  std::cout << "       B PLUS TREE TEST        " << std::endl;
+  std::cout << "===============================" << std::endl;
+  std::cout << "===============================" << std::endl;
   std::cout << "   BASIC INSERT / LOOKUP       " << std::endl;
   std::cout << "===============================" << std::endl;
   test_insert_and_lookup_single_key();

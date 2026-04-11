@@ -4,12 +4,14 @@
 #include <vector>
 
 BPlusTree::BPlusTree(BufferPool *bp, int node_cap)
+
     : buffer_pool(bp), node_cap(node_cap), root_node(nullptr) {
   this->root_node = new Node(NodeType::LEAF);
   this->nodes.push_back(this->root_node);
 }
 
 int BPlusTree::lookup(int key) {
+
   Node *current_node = this->root_node;
   while (current_node->type == NodeType::INNER) {
     // find child idx of the current node
@@ -145,14 +147,4 @@ void BPlusTree::remove(int key) {
 
 void BPlusTree::range_scan(int low, int high, std::vector<int> &results) {
   std::cout << "NOT IMPLEMENTED YET" << std::endl;
-}
-
-BPlusTree::~BPlusTree() {
-  this->node_cap = -1;
-  for (Node *node : this->nodes) {
-    delete node;
-  }
-  this->nodes.clear();
-  delete this->root_node;
-  delete buffer_pool;
 }
