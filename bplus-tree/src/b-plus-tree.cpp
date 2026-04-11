@@ -1,10 +1,8 @@
 #include "../include/b-plus-tree.h"
 #include <algorithm>
-#include <iostream>
 #include <vector>
 
 BPlusTree::BPlusTree(BufferPool *bp, int node_cap)
-
     : buffer_pool(bp), node_cap(node_cap), root_node(nullptr) {
   this->root_node = new Node(NodeType::LEAF);
   this->nodes.push_back(this->root_node);
@@ -172,5 +170,25 @@ void BPlusTree::remove(int key) {
 }
 
 void BPlusTree::range_scan(int low, int high, std::vector<int> &results) {
-  std::cout << "NOT IMPLEMENTED YET" << std::endl;
+
+    // first phase -- finding starting leaf
+    Node *current_node = this->root_node;
+        while (current_node->type == NodeType::INNER) {
+        // find child idx of the current node
+        // check comment in bplus-tree.h
+        int child_idx = current_node->traverse(low);
+        // after traverse -> get the idx of child node (leaf node)
+        // traverse down, assign current node as the child node
+        current_node = current_node->children_nodes[child_idx];
+    }
+
+    while (current_node != nullptr) {
+        for (int i = 0; i < current_node->keys.size(); i ++) {
+            if (current_node->keys[i] >=  low && current_node->keys[i] <= high) {
+                results.push_back(current_node->values[i]);
+            }
+        }
+        current_node = current_node->next_node;
+    }
+
 }
