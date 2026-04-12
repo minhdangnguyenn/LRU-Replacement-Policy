@@ -5,16 +5,22 @@
 BPlusTree::BPlusTree(BufferPool *bp) : buffer_pool(bp) {
 
     int page_id = bp->create_new_page();
+    char* page  = bp->fetch_page(page_id);
     this->root_page_id = page_id;
+    this->write_int(page, 0, NODETYPE::LEAF);
+    this->write_int(page, 4, 0);
+    this->write_int(page, 8, -1);
 
+    bp->unpin_page(page_id, false);
 }
 
+// these 2 functions only cast integer fron offset
 int BPlusTree::read_int(char* page, int offset) {
     return *(int*)(page + offset);
 }
 
-void BPlusTree::write_int(char* page, int offset, NODETYPE type) {
-    std::cout << "NOT IMPLEMENTED YET" << std::endl;
+void BPlusTree::write_int(char* page, int offset, int value) {
+    *(int* )(page + offset) = value;
 }
 
 int BPlusTree::binary_search(char * page, int nums_key, int key) {

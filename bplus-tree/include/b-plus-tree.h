@@ -27,7 +27,7 @@ public:
   // helper function to cast from raw char* to int in offset at page
   int read_int(char* page, int offset);
 
-  void write_int(char* page, int offset, NODETYPE type);
+  void write_int(char* page, int offset, int value);
 
   int binary_search(char * page, int nums_keys, int key);
 
