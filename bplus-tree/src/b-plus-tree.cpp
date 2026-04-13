@@ -114,7 +114,9 @@ void BPlusTree::insert(int key, int page_id) {
 
   std::cout << "NOT IMPLEMENTED" << std::endl;
   // find down to the leaf
+  // overwrite value if key already exist
   // check if the leaf still has slot
+  // if still has slot -> insert directly
   // if full -> split from bottom up
 }
 
