@@ -4,6 +4,7 @@
 #include "./buffer-pool.h"
 #include "./index-strategy.h"
 #include <stack>
+#include <utility>
 #include <vector>
 
 enum NODETYPE { LEAF, INNER };
@@ -26,9 +27,14 @@ public:
   int read_int(char *page, int offset);
 
   void write_int(char *page, int offset, int value);
+
   std::pair<int, std::stack<int>> find_leaf(int key);
+  bool leaf_has_room(char *page);
   void insert_into_leaf(char *page, int key, int value);
+
   void split_leaf(int leaf_page_id, std::stack<int> parent_stack);
+  void split_inner(int page_id, std::pair<int, std::stack<int>>);
+
   int binary_search(char *page, int nums_keys, int key);
 
 private:
