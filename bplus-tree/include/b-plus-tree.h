@@ -3,12 +3,10 @@
 
 #include "./buffer-pool.h"
 #include "./index-strategy.h"
+#include <stack>
 #include <vector>
 
-enum NODETYPE {
-    LEAF,
-    INNER
-};
+enum NODETYPE { LEAF, INNER };
 
 class BPlusTree : public IndexStrategy {
 public:
@@ -25,11 +23,13 @@ public:
   void range_scan(int low, int high, std::vector<int> &results) override;
 
   // helper function to cast from raw char* to int in offset at page
-  int read_int(char* page, int offset);
+  int read_int(char *page, int offset);
 
-  void write_int(char* page, int offset, int value);
-
-  int binary_search(char * page, int nums_keys, int key);
+  void write_int(char *page, int offset, int value);
+  std::pair<int, std::stack<int>> find_leaf(int key);
+  void insert_into_leaf(char *page, int key, int value);
+  void split_leaf(int leaf_page_id, std::stack<int> parent_stack);
+  int binary_search(char *page, int nums_keys, int key);
 
 private:
   BufferPool *buffer_pool;
