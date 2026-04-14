@@ -81,6 +81,7 @@ int BPlusTree::lookup(int key) {
       // then follow the child_page_id
       current_page_id = this->binary_search(page, num_keys, key);
     }
+    this->buffer_pool->unpin_page(current_page_id, true);
   }
 }
 
@@ -116,7 +117,7 @@ void BPlusTree::insert(int key, int page_id) {
 
   // std::cout << "NOT IMPLEMENTED" << std::endl;
   // find down to the leaf
-  auto leaf_tuple = this->find_leaf(key);
+  std::tuple<int, char *, std::stack<int>> leaf_tuple = this->find_leaf(key);
   int leaf_page_id = std::get<0>(leaf_tuple);
   char *current_page = std::get<1>(leaf_tuple);
   std::stack<int> parent_stack = std::get<2>(leaf_tuple);
@@ -152,14 +153,50 @@ void BPlusTree::insert(int key, int page_id) {
     this->buffer_pool->unpin_page(leaf_page_id, true);
   } else {
     // split leaf here
-    std::cout << "NOT IMPLEMENTED YET !" << std::endl;
+    std::cout << "SPLIT LEAF NOT IMPLEMENTED YET !" << std::endl;
     this->buffer_pool->unpin_page(leaf_page_id, true);
   }
 }
 
 void BPlusTree::insert_into_leaf(char *page, int key, int value) {
 
-  std::cout << " NOT IMPLEMENTED " << std::endl;
+  // std::cout << " NOT IMPLEMENTED " << std::endl;
+  int num_keys = this->read_int(page, 4);
+
+  // find the insert position
+  int insert_pos = 0;
+  while (insert_pos < num_keys) {
+    int k = this->read_int(page, 12 + insert_pos * 4);
+
+    // find the insert position i
+    if (k > key) {
+      break;
+    }
+
+    insert_pos++;
+  }
+
+  int new_value_start = 12 + (num_keys + 1) * 4;
+
+  // shift key > insert key to the right to insert new key
+  // need to loop from right to left and shift from left to right
+  int j = num_keys - 1;
+  while (j >= insert_pos) {
+    int prev_key = this->read_int(page, 12 + j * 4);
+    this->write_int(page, 12 + (j + 1) * 4, prev_key);
+
+    int prev_value = this->read_int(page, 12 + num_keys * 4 + j * 4);
+    this->write_int(page, new_value_start + (j + 1) * 4, prev_value);
+
+    j--;
+  }
+
+  this->write_int(page, 12 + insert_pos * 4, key);
+  int increment_num_keys = num_keys + 1;
+
+  this->write_int(page, 4, increment_num_keys);
+
+  this->write_int(page, new_value_start + insert_pos * 4, value);
 }
 
 void BPlusTree::remove(int key) { std::cout << "NOT IMPLEMENTED" << std::endl; }
