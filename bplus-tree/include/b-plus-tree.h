@@ -31,6 +31,7 @@ public:
   std::tuple<int, char *, std::stack<int>> find_leaf(int key);
   bool leaf_has_room(char *page);
   void insert_into_leaf(char *page, int key, int value);
+  void insert_into_parent(char *page, int key, int value);
 
   void split_leaf(int leaf_page_id, std::stack<int> parent_stack);
   void split_inner(int page_id, std::pair<int, std::stack<int>>);

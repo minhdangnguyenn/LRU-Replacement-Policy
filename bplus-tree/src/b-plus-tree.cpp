@@ -210,6 +210,11 @@ void BPlusTree::insert_into_leaf(char *page, int key, int value) {
   this->write_int(page, new_value_start + insert_pos * 4, value);
 }
 
+void BPlusTree::split_leaf(int leaf_page_id, std::stack<int> parent_stack) {
+
+  std::cout << "NOT IMPLEMENTED !" << std::endl;
+}
+
 void BPlusTree::remove(int key) { std::cout << "NOT IMPLEMENTED" << std::endl; }
 
 void BPlusTree::range_scan(int low, int high, std::vector<int> &results) {
