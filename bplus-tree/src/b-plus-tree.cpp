@@ -278,7 +278,7 @@ void BPlusTree::split_leaf(int leaf_page_id, int key, int value,
 
     // update the nums_key of the old page (now it is the left page)
     this->write_int(page, 4, mid);
-    this->write_int(page, 8, new_right_leaf.)
+    this->write_int(page, 8, new_right_leaf->get_key());
     // step 6: push mid key point to inner
     // step 7: unpin, call parent
 }
