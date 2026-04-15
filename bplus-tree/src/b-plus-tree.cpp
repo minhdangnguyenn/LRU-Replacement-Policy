@@ -1,4 +1,5 @@
 #include "../include/b-plus-tree.h"
+#include "../include/page.h"
 #include <iostream>
 #include <stack>
 #include <vector>
@@ -253,7 +254,31 @@ void BPlusTree::split_leaf(int leaf_page_id, int key, int value,
     int mid = (max_keys + 1) / 2;
     // TODO
     // step 4: create and fill the right leaf
+    Page *new_right_leaf = new Page();
+    int right_num_keys = max_keys - mid + 1;
+    char *right_leaf_data = new_right_leaf->get_data();
+    this->write_int(right_leaf_data, 0, 1);
+    this->write_int(right_leaf_data, 4,
+                    right_num_keys); // node type, 1 for leaf, 0 for inner
+    this->write_int(right_leaf_data, 8, old_next);
+    // assign keys for new right leaf
+    // assign values for new right leaf
+    for (int i = mid; i <= max_keys; i++) {
+        this->write_int(right_leaf_data, 12 + (i - mid) * 4, temp_keys[i]);
+        this->write_int(right_leaf_data,
+                        12 + right_num_keys * 4 + (i - mid) * 4,
+                        temp_values[i]);
+    }
+
     // step 5: rewrite the left leaf
+    for (int i = 0; i < mid; i++) {
+        this->write_int(page, 12 + i * 4, temp_keys[i]);
+        this->write_int(page, 12 + mid * 4 + i * 4, temp_values[i]);
+    }
+
+    // update the nums_key of the old page (now it is the left page)
+    this->write_int(page, 4, mid);
+    this->write_int(page, 8, new_right_leaf.)
     // step 6: push mid key point to inner
     // step 7: unpin, call parent
 }
