@@ -1,7 +1,7 @@
 #include "../include/b-plus-tree.h"
-#include "../include/page.h"
 #include <iostream>
 #include <stack>
+#include <utility>
 #include <vector>
 
 BPlusTree::BPlusTree(BufferPool *bp) : buffer_pool(bp) {
@@ -251,9 +251,7 @@ void BPlusTree::split_leaf(int leaf_page_id, int key, int value,
 
     // step 3: split point
     int mid = (max_keys + 1) / 2;
-    // TODO
     // step 4: create and fill the right leaf
-    Page *new_right_leaf = new Page();
 
     // step 5: rewrite the left leaf
     for (int i = 0; i < mid; i++) {
@@ -285,8 +283,106 @@ void BPlusTree::split_leaf(int leaf_page_id, int key, int value,
     this->write_int(page, 8, new_right_page_id);
 
     // step 6: push mid key point to inner
+    int promote_key = temp_keys[mid];
+    // if empty -> create new root
+    if (parent_stack.empty()) {
+        int new_root_pid = this->buffer_pool->create_new_page();
+        char *root_data = this->buffer_pool->fetch_page(new_root_pid);
+
+        this->write_int(root_data, 0, 0); // write type inner for inner node
+        this->write_int(root_data, 4, 1); // write nums_key = 1
+        this->write_int(root_data, 8, leaf_page_id); // write left child pointer
+        this->write_int(root_data, 12, promote_key);
+        this->write_int(root_data, 16, new_right_page_id);
+
+        this->root_page_id = new_root_pid;
+        this->buffer_pool->unpin_page(new_root_pid, true);
+    }
+    // if the parent is not empty
+    else {
+        int parent_page_id = parent_stack.top();
+        parent_stack.pop();
+        char *parent_data = this->buffer_pool->fetch_page(parent_page_id);
+        int num_keys = this->read_int(parent_data, 4);
+
+        // find the suitable position to insert new key
+        int insert_pos = -1;
+        for (int i = 0; i < num_keys; i++) {
+            int k = this->read_int(parent_data, 12 + i * 8);
+            if (k > promote_key) {
+                insert_pos = i;
+                break;
+            }
+        }
+        if (insert_pos == -1) {
+            insert_pos = num_keys;
+        }
+
+        // shift existing key and children
+        for (int i = num_keys; i > insert_pos; i--) {
+            int copy_key = this->read_int(parent_data, 12 + (i - 1) * 8);
+            int copy_child = this->read_int(parent_data, 8 + i * 8);
+
+            this->write_int(parent_data, 12 + i * 8, copy_key);
+            this->write_int(parent_data, 8 + (i + 1) * 8, copy_child);
+        }
+
+        // insert into parent data
+        this->write_int(parent_data, 12 + insert_pos * 8, promote_key);
+        this->write_int(parent_data, 4, num_keys + 1);
+        this->write_int(parent_data, 8 + (insert_pos + 1) * 8,
+                        new_right_page_id);
+
+        // check if parent is overflow
+        int inner_max_keys = ((PAGE_SIZE - 8) / 4 - 1) / 2;
+        if (num_keys + 1 > inner_max_keys) {
+            this->split_inner(parent_page_id,
+                              std::pair(parent_page_id, parent_stack));
+        } else {
+            this->buffer_pool->unpin_page(parent_page_id, true);
+        }
+    }
 
     // step 7: unpin, call parent
+    this->buffer_pool->unpin_page(leaf_page_id, true);
+    this->buffer_pool->unpin_page(new_right_page_id, true);
+}
+
+void BPlusTree::split_inner(int page_id,
+                            std::pair<int, std::stack<int>> parent_stack) {
+    char *inner_page = this->buffer_pool->fetch_page(page_id);
+    int num_keys = this->read_int(inner_page, 4);
+
+    int temp_keys[num_keys];
+    int temp_children[num_keys + 1];
+
+    for (int i = 0; i < num_keys; i++) {
+        temp_keys[i] = this->read_int(inner_page, 12 + i * 8);
+        temp_children[i] = this->read_int(inner_page, 8 + i * 8);
+    }
+
+    // last member of children
+    temp_children[num_keys] = this->read_int(inner_page, 8 + num_keys * 8);
+
+    // find split point
+    int mid = num_keys / 2;
+    int promote_key = temp_keys[mid];
+
+    // update into the left child node
+    // 0 -> mid - 1 go to left child
+    // mid + 1 -> nums_key - 1 go to right child
+    // temp_keys[mid] goes up
+    int left_num_keys = mid;
+    for (int i = 0; i < mid; i++) {
+        this->write_int(inner_page, 8 + i * 8, temp_children[i]);
+        this->write_int(inner_page, 12 + i * 8, temp_keys[i]);
+    }
+    this->write_int(inner_page, 8 + mid * 8, temp_children[mid]);
+    num_keys = mid;
+    this->write_int(inner_page, 4, mid);
+
+    // create right inner node
+    // TODO
 }
 
 void BPlusTree::remove(int key) { std::cout << "NOT IMPLEMENTED" << std::endl; }
