@@ -214,7 +214,6 @@ void BPlusTree::insert_into_leaf(char *page, int key, int value) {
 void BPlusTree::split_leaf(int leaf_page_id, int key, int value,
                            std::stack<int> parent_stack) {
 
-    // std::cout << "NOT IMPLEMENTED !" << std::endl;
     int max_keys = (PAGE_SIZE - 12) / 8;
     char *page = this->buffer_pool->fetch_page(leaf_page_id);
     int num_keys = this->read_int(page, 4);
