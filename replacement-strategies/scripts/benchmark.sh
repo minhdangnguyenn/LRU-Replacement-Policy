@@ -31,7 +31,7 @@ else
   PYTHON_BIN=""
 fi
 if [ -n "$PYTHON_BIN" ]; then
-  "$PYTHON_BIN" benchmark/plot_benchmark.py benchmark_results.csv
+  "$PYTHON_BIN" benchmark/plot.py benchmark_results.csv
 fi
 
 echo ""

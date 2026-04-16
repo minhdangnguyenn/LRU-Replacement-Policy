@@ -3,19 +3,36 @@
 A **Buffer Pool** implemented in C++ using a **Doubly Linked List** + **Hash Map** for O(1) `pin`, `get`, and `unpin` operations — modelled after real database buffer pool managers.
 
 ### Benchmark time with capacity -- Compare between Naive LRU and optimized LRU
+
 ![benchmark lru time vs capacity](./benchmark/benchmark_time_vs_capacity.png)
 
 ### Benchmark time in ms -- Compare between Naive LRU and optimized LRU
+
 ![benchmark lru time vs capacity](./benchmark/benchmark_time_ms.png)
 
-### More benchmark results in 
+### More benchmark results in
+
 [LRU Benchmark](./benchmark/)
 
 ---
 
 ## How It Works
 
+### How to run
+
+create a python environment in root wiht requiremnts.txt
+
+```bash
+source .venv/bin/activate.sh
+```
+
+```bash
+cd replacement-strategies/
+bash scripts/benchmark.sh
+```
+
 ### Data Structures
+
 - **Main Doubly Linked List** — tracks LRU order of all pages
 - **Unpinned Doubly Linked List** — tracks only evictable (unpinned) pages
 - **`unordered_map`** — O(1) key → page pointer lookup
@@ -40,19 +57,19 @@ uhead -- [MRU unpinned] -- page -- [LRU unpinned] -- utail
 
 ### API
 
-| Method | Description |
-|---|---|
+| Method            | Description                                             |
+| ----------------- | ------------------------------------------------------- |
 | `pin(key, value)` | Insert or update a page, mark as pinned (not evictable) |
-| `get(key)` | Read a page, move to MRU. Returns `-1` if not found |
-| `unpin(page*)` | Mark a page as evictable |
+| `get(key)`        | Read a page, move to MRU. Returns `-1` if not found     |
+| `unpin(page*)`    | Mark a page as evictable                                |
 
 ### Complexity
 
-| Operation | Time | Space |
-|---|---|---|
-| `get(key)` | O(1) | O(1) |
-| `pin(key, value)` | O(1) | O(n) |
-| `unpin(page*)` | O(1) | O(1) |
+| Operation         | Time | Space |
+| ----------------- | ---- | ----- |
+| `get(key)`        | O(1) | O(1)  |
+| `pin(key, value)` | O(1) | O(n)  |
+| `unpin(page*)`    | O(1) | O(1)  |
 
 ---
 
@@ -118,14 +135,14 @@ Machine: `Ubuntu WSL2`
 
 Both implementations run the **exact same operations** (same random seed) for a fair comparison.
 
-| Implementation | Data Structure | `get` | `put` |
-|---|---|---|---|
-| **O(1)** | Doubly Linked List + HashMap | O(1) | O(1) |
-| **Naive** | Vector + Loop | O(n) | O(n) |
+| Implementation | Data Structure               | `get` | `put` |
+| -------------- | ---------------------------- | ----- | ----- |
+| **O(1)**       | Doubly Linked List + HashMap | O(1)  | O(1)  |
+| **Naive**      | Vector + Loop                | O(n)  | O(n)  |
 
 ```
 ===============================
-   O(1) vs NAIVE BENCHMARKS   
+   O(1) vs NAIVE BENCHMARKS
 ===============================
 
 --- Small cache, high contention ---
@@ -198,12 +215,14 @@ Both implementations run the **exact same operations** (same random seed) for a 
 ## Observations
 
 ### O(1) Implementation
+
 - Consistent **~300–540 ns per operation** across all cache sizes
 - Confirms true **O(1)** behaviour — performance does not degrade with capacity
 - High eviction rate has minimal impact on performance
 - Massive cache (1M capacity) actually faster due to fewer hash collisions
 
 ### Naive Implementation
+
 - Similar speed for **small capacity** (cap=10) — loop is short enough to be competitive
 - **~13x slower** on medium cache (5106 ns vs 399 ns at cap=1000)
 - **~2x slower** on high eviction (846 ns vs 416 ns at cap=100)
@@ -211,10 +230,10 @@ Both implementations run the **exact same operations** (same random seed) for a 
 
 ### Summary Table
 
-| Scenario | Capacity | O(1) per op | Naive per op | Speedup |
-|---|---|---|---|---|
-| Small, high contention | 10 | 361 ns | 309 ns | ~1x |
-| Medium, normal use | 1000 | 399 ns | 5106 ns | **~13x** |
-| Large, high eviction | 100 | 416 ns | 846 ns | **~2x** |
-| Large, low eviction | 100,000 | 537 ns | N/A (too slow) | — |
-| Massive cache | 1,000,000 | 297 ns | N/A (too slow) | — |
+| Scenario               | Capacity  | O(1) per op | Naive per op   | Speedup  |
+| ---------------------- | --------- | ----------- | -------------- | -------- |
+| Small, high contention | 10        | 361 ns      | 309 ns         | ~1x      |
+| Medium, normal use     | 1000      | 399 ns      | 5106 ns        | **~13x** |
+| Large, high eviction   | 100       | 416 ns      | 846 ns         | **~2x**  |
+| Large, low eviction    | 100,000   | 537 ns      | N/A (too slow) | —        |
+| Massive cache          | 1,000,000 | 297 ns      | N/A (too slow) | —        |
