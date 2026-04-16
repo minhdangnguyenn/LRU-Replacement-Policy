@@ -9,81 +9,90 @@ BPlusTree::BPlusTree(BufferPool *bp) : buffer_pool(bp) {
 
     int page_id = bp->create_new_page();
     char *page = bp->fetch_page(page_id);
-    this->root_page_id = page_id;
-    this->write_int(page, 0, NODETYPE::LEAF);
-    this->write_int(page, 4, 0);
-    this->write_int(page, 8, -1);
 
-    bp->unpin_page(page_id, false);
+    this->root_page_id = page_id;
+
+    // Initialize a leaf
+    write_int(page, TYPE_OFFSET, NODETYPE::LEAF);
+    write_int(page, NUMKEYS_OFFSET, 0);
+    write_int(page, NEXTLEAF_OFFSET, -1);
+
+    bp->unpin_page(page_id, true);
 }
 
 // these 2 functions only cast integer fron offset
 int BPlusTree::read_int(char *page, int offset) {
-    return *(int *)(page + offset);
+    return *reinterpret_cast<int *>(page + offset);
 }
 
 void BPlusTree::write_int(char *page, int offset, int value) {
-    *(int *)(page + offset) = value;
+    *reinterpret_cast<int *>(page + offset) = value;
 }
 
-int BPlusTree::binary_search(char *page, int nums_key, int key) {
+int BPlusTree::binary_search(char *page, int num_keys, int key) {
 
     int low = 0;
-    int high = nums_key - 1;
+    int high = num_keys - 1;
 
+    // Keys are sorted ascending
     while (low <= high) {
         int mid = low + (high - low) / 2;
-        int k = this->read_int(page, 12 + mid * 4);
-        if (k <= key)
-            low = mid + 1;
-        else
+        int mid_key = read_int(page, 12 + mid * 4);
+
+        if (key < mid_key)
             high = mid - 1;
+        else
+            low = mid + 1;
     }
 
-    int children_start = 12 + nums_key * 4;
+    // Children start immediately after keys
+    int children_start = 12 + num_keys * 4;
 
-    return this->read_int(page, children_start + low * 4);
+    // child index = low
+    return read_int(page, children_start + low * 4);
 }
 
 int BPlusTree::lookup(int key) {
 
-    int current_page_id = this->root_page_id;
+    int current_pid = this->root_page_id;
 
     while (true) {
-        char *page = this->buffer_pool->fetch_page(current_page_id);
 
-        // page layout has 4 bytes for each attribute
-        // byte [0-3]   → type       (4 bytes)
-        // byte [4-7]   → num_keys   (4 bytes)
-        // byte [8-11]  → next_page_id (4 bytes, leaf only)
-        // byte [12+]   → keys array (4 bytes each)
-        // byte [12 + num_keys*4 +] → values or children (4 bytes each)
-        //
-        // read page type starts from byte 0
-        int type = this->read_int(page, 0);
+        char *page = buffer_pool->fetch_page(current_pid);
 
-        // read number of keys starts from byte 4
-        int num_keys = this->read_int(page, 4);
+        int type = read_int(page, TYPE_OFFSET);
+        int num_keys = read_int(page, NUMKEYS_OFFSET);
 
         if (type == NODETYPE::LEAF) {
-            // scan keys array
+
             for (int i = 0; i < num_keys; i++) {
-                int k = this->read_int(page, 12 + i * 4);
+                int k = read_int(page, 12 + i * 4);
                 if (k == key) {
-                    // read the corresponding value
-                    int val = this->read_int(page, 12 + num_keys * 4 + i * 4);
-                    return val;
+
+                    int value = read_int(page, 12 + num_keys * 4 + i * 4);
+
+                    buffer_pool->unpin_page(current_pid, false);
+                    return value;
                 }
             }
+
+            buffer_pool->unpin_page(current_pid, false);
             return -1;
         }
 
         if (type == NODETYPE::INNER) {
-            // find the correct child page id using binary search on keys
-            // then follow the child_page_id
-            current_page_id = this->binary_search(page, num_keys, key);
+
+            int next_pid = binary_search(page, num_keys, key);
+
+            // Unpin current BEFORE descending
+            buffer_pool->unpin_page(current_pid, false);
+            current_pid = next_pid;
+            continue;
         }
-        this->buffer_pool->unpin_page(current_page_id, true);
+
+        // Should not happen, but safe cleanup
+        buffer_pool->unpin_page(current_pid, false);
+        return -1;
     }
 }
 

@@ -8,6 +8,10 @@
 #include <vector>
 
 enum NODETYPE { LEAF, INNER };
+static constexpr int TYPE_OFFSET = 0;
+static constexpr int NUMKEYS_OFFSET = 4;
+static constexpr int NEXTLEAF_OFFSET = 8;
+static constexpr int KEY_START = 12;
 
 class BPlusTree : public IndexStrategy {
   public:
@@ -16,6 +20,13 @@ class BPlusTree : public IndexStrategy {
 
     int get_root_page_id() { return this->root_page_id; }
 
+    int get_type(char *page) { return read_int(page, TYPE_OFFSET); };
+    int get_num_keys(char *page) { return read_int(page, NUMKEYS_OFFSET); }
+    void set_num_keys(char *page, int n) { write_int(page, NUMKEYS_OFFSET, n); }
+    int get_next_leaf(char *page) { return read_int(page, NEXTLEAF_OFFSET); }
+    void set_next_leaf(char *page, int id) {
+        write_int(page, NEXTLEAF_OFFSET, id);
+    }
     // return the page_id correspond with key value
     int lookup(int key) override;
 
