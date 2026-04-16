@@ -44,6 +44,7 @@ plt.rcParams.update(
 COLORS = {"O1": "#4C72B0", "NAIVE": "#DD8452"}
 LABELS = {"O1": "O(1) Optimised", "NAIVE": "Naïve"}
 FILE = "./build/benchmark_results.csv"
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 # ── load data ───────────────────────────────────────────────────────────────
 csv_path = sys.argv[1] if len(sys.argv) > 1 else FILE
@@ -213,28 +214,29 @@ grouped_bar(
     metric="time_ms",
     ylabel="Wall-clock time  (ms)",
     title="LRU Cache Benchmark — Total Time (ms) per Workload",
-    out_file="benchmark_time_ms.png",
+    out_file=os.path.join(SCRIPT_DIR, "benchmark_time_ms.png"),
 )
 
 grouped_bar(
     metric="ns_per_op",
     ylabel="Latency per operation  (ns)",
     title="LRU Cache Benchmark — Latency per Operation (ns/op)",
-    out_file="benchmark_ns_per_op.png",
+    out_file=os.path.join(SCRIPT_DIR, "benchmark_ns_per_op.png"),
 )
 
 line_chart(
     metric="time_ms",
     ylabel="Wall-clock time  (ms)",
     title="Time (ms) vs Cache Capacity — O(1) vs Naïve",
-    out_file="benchmark_time_vs_capacity.png",
+    out_file=os.path.join(SCRIPT_DIR, "benchmark_time_vs_capacity.png"),
 )
 
 line_chart(
     metric="ns_per_op",
     ylabel="ns / operation",
     title="ns/op vs Cache Capacity — O(1) vs Naïve",
-    out_file="benchmark_nsop_vs_capacity.png",
+    out_file=os.path.join(SCRIPT_DIR, "benchmark_nsop_vs_capacity.png"),
 )
+
 
 print("\nDone.  Four PNG files written to the current directory.")

@@ -1,9 +1,0 @@
-name,type,capacity,operations,key_range,time_ms,ns_per_op
-Small cache, high contention,O1,10,5000000,20,1811,362
-Small cache, high contention,NAIVE,10,5000000,20,1506,301
-Medium cache, normal use,O1,1000,5000000,2000,1926,385
-Medium cache, normal use,NAIVE,1000,5000000,2000,24629,4925
-Large cache, high eviction,O1,100,5000000,100000,2284,456
-Large cache, high eviction,NAIVE,100,5000000,100000,3929,785
-Large cache, low eviction,O1,100000,5000000,100000,2751,550
-Massive cache,O1,1000000,5000000,1000000,3231,646
