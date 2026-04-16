@@ -1,6 +1,7 @@
 #include "../include/b-plus-tree.h"
 #include <iostream>
 #include <stack>
+#include <tuple>
 #include <utility>
 #include <vector>
 
@@ -464,7 +465,56 @@ void BPlusTree::split_inner(int page_id,
     this->buffer_pool->unpin_page(new_right_inner_id, true);
 }
 
-void BPlusTree::remove(int key) { std::cout << "NOT IMPLEMENTED" << std::endl; }
+void BPlusTree::remove(int key) {
+    // std::cout << "NOT IMPLEMENTED" << std::endl;
+    std::tuple<int, char *, std::stack<int>> leaf = this->find_leaf(key);
+    int leaf_pid = std::get<0>(leaf);
+    char *leaf_data = std::get<1>(leaf);
+    int leaf_num_keys = this->read_int(leaf_data, 4);
+
+    int delete_pos = -1;
+    for (int i = 0; i < leaf_num_keys; i++) {
+        int check_key = this->read_int(leaf_data, 12 + i * 4);
+        if (check_key == key) {
+            delete_pos = i;
+            break;
+        }
+    }
+    // if not found -> unpin, return
+    if (delete_pos == -1) {
+        std::cout << "DELETE KEY NOT FOUND !" << std::endl;
+        this->buffer_pool->unpin_page(leaf_pid, false);
+        return;
+    }
+
+    int original_leaf_keys[leaf_num_keys];
+    int original_leaf_values[leaf_num_keys];
+
+    for (int i = 0; i < leaf_num_keys; i++) {
+        original_leaf_keys[i] = this->read_int(leaf_data, 12 + i * 4);
+        original_leaf_values[i] =
+            this->read_int(leaf_data, 12 + leaf_num_keys * 4 + i * 4);
+    }
+
+    // write everything back, skipping delete pos
+    int new_num_keys = leaf_num_keys - 1;
+    int j = 0;
+    for (int i = 0; i < leaf_num_keys; i++) {
+        if (i == delete_pos) {
+            continue;
+        }
+        this->write_int(leaf_data, 12 + j * 4, original_leaf_keys[i]);
+        this->write_int(leaf_data, 12 + new_num_keys * 4 + j * 4,
+                        original_leaf_values[i]);
+
+        j++;
+    }
+
+    // update num keys in the leaf page
+    this->write_int(leaf_data, 4, new_num_keys);
+
+    this->buffer_pool->unpin_page(leaf_pid, true);
+}
 
 void BPlusTree::range_scan(int low, int high, std::vector<int> &results) {
 
