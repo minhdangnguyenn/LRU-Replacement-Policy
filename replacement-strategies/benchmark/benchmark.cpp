@@ -32,7 +32,8 @@ struct Strategy {
 
 void init_csv(std::ofstream &csv, const std::string &filename) {
     csv.open(filename);
-    csv << "name,type,capacity,operations,key_range,run,time_ms,ns_per_op\n";
+    csv << "name,type,capacity,operations,key_range,run,time_ms,ns_per_op,hit_"
+           "rate\n";
 }
 
 void write_csv_row(std::ofstream &csv, const std::string &name,
@@ -69,6 +70,32 @@ void unpin_if_needed(BufferPool &cache, int key) {
     }
 }
 
+std::vector<Operation> build_hotspot_workload(int operations, int key_range,
+                                              int seed, float hot_ratio = 0.8f,
+                                              float hot_fraction = 0.2f) {
+    std::vector<Operation> trace;
+    trace.reserve(operations);
+
+    std::mt19937 gen(seed);
+    std::uniform_real_distribution<float> prob(0.0f, 1.0f);
+    std::uniform_int_distribution<int> hot_dist(
+        0, (int)(key_range * hot_fraction) - 1);
+    std::uniform_int_distribution<int> cold_dist(0, key_range - 1);
+    std::uniform_int_distribution<int> op_dist(0, 1);
+    std::uniform_int_distribution<int> value_dist(0, 9999);
+
+    for (int i = 0; i < operations; i++) {
+        Operation op;
+        op.is_get = (op_dist(gen) == 0);
+        // 80% of accesses go to 20% of keys (hot zone)
+        op.key = (prob(gen) < hot_ratio) ? hot_dist(gen) : cold_dist(gen);
+        op.value = value_dist(gen);
+        trace.push_back(op);
+    }
+
+    return trace;
+}
+
 void run_once(const Workload &workload, int capacity, int run,
               const Strategy &strategy, const std::vector<Operation> &trace,
               std::ofstream &csv) {
@@ -103,6 +130,28 @@ void run_once(const Workload &workload, int capacity, int run,
     const long long ns_per_op =
         workload.operations > 0 ? elapsed_ns / workload.operations : 0;
 
+    long long hits = 0;
+    long long gets = 0;
+
+    for (const auto &op : trace) {
+        if (op.is_get) {
+            gets++;
+            int value = cache.get(op.key);
+            if (value != -1) {
+                hits++;
+                if (strategy.touch_on_get) {
+                    cache.pin(op.key, value);
+                    unpin_if_needed(cache, op.key);
+                }
+            }
+            continue;
+        }
+        cache.pin(op.key, op.value);
+        unpin_if_needed(cache, op.key);
+    }
+
+    double hit_rate = (gets > 0) ? (double)hits / gets : 0.0;
+
     write_csv_row(csv, workload.name, strategy.type, capacity,
                   workload.operations, workload.key_range, run, elapsed_ms,
                   ns_per_op);
@@ -117,8 +166,8 @@ void run_workload(const Workload &workload, const std::vector<int> &capacities,
         std::cout << "capacity = " << capacity << std::endl;
 
         for (int run = 0; run < runs; run++) {
-            const auto trace =
-                build_workload(workload.operations, workload.key_range, 42 + run);
+            const auto trace = build_workload(workload.operations,
+                                              workload.key_range, 42 + run);
 
             for (const auto &strategy : strategies) {
                 if (strategy.type == "NAIVE" && capacity > naive_max_capacity) {
@@ -140,14 +189,15 @@ int main() {
     const int runs = 2;
     const int naive_max_capacity = 5000;
     const std::vector<int> capacities = {10, 100, 1000, 5000, 100000};
+
     const std::vector<Workload> workloads = {
-        {"High contention", 120000, 20},
-        {"Balanced workload", 90000, 2000},
-        {"Low contention", 70000, 100000},
+        {"High contention", 120000, 20},     {"Balanced workload", 90000, 2000},
+        {"Low contention", 70000, 100000},   {"Hotspot 80-20", 100000, 5000},
+        {"Sequential scan", 100000, 100000},
     };
+
     const std::vector<Strategy> strategies = {
-        {"NAIVE", true,
-         []() { return std::make_unique<LRUReplacerNaive>(); }},
+        {"NAIVE", true, []() { return std::make_unique<LRUReplacerNaive>(); }},
         {"LRU", true, []() { return std::make_unique<LRUReplacer>(); }},
         {"FIFO", false, []() { return std::make_unique<FIFOReplacer>(); }},
     };

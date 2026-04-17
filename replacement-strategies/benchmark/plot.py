@@ -27,7 +27,6 @@ REQUIRED_COLS = {
 }
 
 
-
 def find_default_csv() -> str:
     candidates = [
         "benchmark_results.csv",
@@ -38,7 +37,6 @@ def find_default_csv() -> str:
         if os.path.exists(path):
             return path
     return candidates[0]
-
 
 
 def load_dataframe() -> pd.DataFrame:
@@ -75,7 +73,6 @@ def load_dataframe() -> pd.DataFrame:
     return df
 
 
-
 def aggregate(df: pd.DataFrame) -> pd.DataFrame:
     agg = (
         df.groupby(["name", "type", "capacity"], as_index=False)
@@ -95,16 +92,13 @@ def aggregate(df: pd.DataFrame) -> pd.DataFrame:
     return agg
 
 
-
 def ordered_workloads(agg: pd.DataFrame):
     return agg["name"].drop_duplicates().tolist()
-
 
 
 def strategies_present(agg: pd.DataFrame):
     present = set(agg["type"].unique())
     return [s for s in STRATEGY_ORDER if s in present]
-
 
 
 def plot_metric_vs_capacity(
@@ -163,7 +157,6 @@ def plot_metric_vs_capacity(
     print(f"[saved] {out_file}")
 
 
-
 def max_common_capacity(agg: pd.DataFrame):
     strategies = strategies_present(agg)
     if not strategies:
@@ -178,7 +171,6 @@ def max_common_capacity(agg: pd.DataFrame):
     if not common:
         return None
     return common[-1]
-
 
 
 def plot_grouped_at_capacity(
@@ -216,7 +208,7 @@ def plot_grouped_at_capacity(
                 errs.append(float(row[metric_std].iloc[0]))
 
         offset = (i - (len(strategies) - 1) / 2.0) * width
-        ax.bar(
+        bars = ax.bar(
             x + offset,
             vals,
             width,
@@ -229,17 +221,37 @@ def plot_grouped_at_capacity(
             alpha=0.9,
         )
 
+        # --- ADD THIS BLOCK ---
+        for bar, val, err in zip(bars, vals, errs):
+            if val == 0.0:
+                continue
+            label_y = bar.get_height() + err + ax.get_ylim()[1] * 0.01
+            ax.text(
+                bar.get_x() + bar.get_width() / 2.0,
+                label_y,
+                f"{val:.1f}",
+                ha="center",
+                va="bottom",
+                fontsize=7.5,
+                fontweight="bold",
+                color=COLORS[strategy],
+            )
+        # --- END BLOCK ---
+
     ax.set_title(f"{title_prefix} (capacity={selected_capacity:,})")
     ax.set_ylabel(y_label)
     ax.set_xticks(x)
     ax.set_xticklabels(workloads)
     ax.legend(loc="upper left", frameon=True)
 
+    # give some headroom so labels are not clipped
+    ymin, ymax = ax.get_ylim()
+    ax.set_ylim(ymin, ymax * 1.12)
+
     fig.tight_layout()
     fig.savefig(out_file, dpi=150, bbox_inches="tight")
     plt.close(fig)
     print(f"[saved] {out_file}")
-
 
 
 def main() -> None:
