@@ -149,10 +149,18 @@ def plot_metric_vs_capacity(
 
     handles, labels = axes[0].get_legend_handles_labels()
     if handles:
-        fig.legend(handles, labels, loc="upper center", ncol=len(labels), frameon=True)
+        fig.legend(
+            handles,
+            labels,
+            loc="upper center",
+            ncol=len(labels),
+            frameon=True,
+            bbox_to_anchor=(0.5, 0.98),
+        )
 
-    fig.suptitle(title, y=0.995, fontsize=13, fontweight="bold")
-    fig.tight_layout(rect=[0, 0, 1, 0.95])
+    fig.suptitle(title, y=1.02, fontsize=13, fontweight="bold")
+    fig.tight_layout(rect=[0, 0, 1, 0.93])
+
     fig.savefig(out_file, dpi=150, bbox_inches="tight")
     plt.close(fig)
     print(f"[saved] {out_file}")
