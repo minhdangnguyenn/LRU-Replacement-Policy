@@ -2,6 +2,7 @@
 #include "../include/fifo-replacer.h"
 #include "../include/lru-cache-naive.h"
 #include "../include/lru-replacer.h"
+#include "../include/random-replacer.h"
 
 #include <chrono>
 #include <fstream>
@@ -200,6 +201,7 @@ int main() {
         {"NAIVE", true, []() { return std::make_unique<LRUReplacerNaive>(); }},
         {"LRU", true, []() { return std::make_unique<LRUReplacer>(); }},
         {"FIFO", false, []() { return std::make_unique<FIFOReplacer>(); }},
+        {"RANDOM", false, []() { return std::make_unique<RandomReplacer>(); }},
     };
 
     for (const auto &workload : workloads) {
