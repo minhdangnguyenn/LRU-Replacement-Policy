@@ -1,6 +1,6 @@
 #pragma once
 
-inline const int PAGE_SIZE = 1024;
+inline const int PAGE_SIZE = 4096;
 inline const char *TEST_STRING =
     "zmlpVpxQH6EAMn3xyQjO0v6GWDyqam9HC3L8wn5jXK86OcbDYfAftauGmWdnpzVvR5i1LULzfi"
     "kljmIVX0hYlerKcnyYyzxf25SyBtOOt2SnYPpsUeB7pF42WH5p2zOLrQL9PBx3vPR7lPkNOU1o"
