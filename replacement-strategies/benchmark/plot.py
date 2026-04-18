@@ -108,19 +108,14 @@ def plot_metric_vs_capacity(
     metric_std: str,
     y_label: str,
     title: str,
-    out_file: str,
+    out_prefix: str,  # <-- renamed from out_file to out_prefix
 ) -> None:
     workloads = ordered_workloads(agg)
     strategies = strategies_present(agg)
 
-    cols = 2 if len(workloads) > 1 else 1
-    rows = math.ceil(len(workloads) / cols)
+    for workload in workloads:
+        fig, ax = plt.subplots(figsize=(8, 5))
 
-    fig, axes = plt.subplots(rows, cols, figsize=(7 * cols, 4 * rows))
-    axes = np.array(axes).reshape(-1)
-
-    for idx, workload in enumerate(workloads):
-        ax = axes[idx]
         sub = agg[agg["name"] == workload]
 
         for strategy in strategies:
@@ -140,30 +135,20 @@ def plot_metric_vs_capacity(
             )
 
         ax.set_xscale("log")
-        ax.set_title(workload)
-        ax.set_xlabel("Capacity (log)")
+        ax.set_title(f"{title} — {workload}", fontsize=12, fontweight="bold")
+        ax.set_xlabel("Capacity (log scale)")
         ax.set_ylabel(y_label)
+        ax.legend(loc="upper left", frameon=True)
 
-    for idx in range(len(workloads), len(axes)):
-        axes[idx].axis("off")
+        fig.tight_layout()
 
-    handles, labels = axes[0].get_legend_handles_labels()
-    if handles:
-        fig.legend(
-            handles,
-            labels,
-            loc="upper center",
-            ncol=len(labels),
-            frameon=True,
-            bbox_to_anchor=(0.5, 0.98),
-        )
+        # build a safe filename from the workload name
+        safe_name = workload.lower().replace(" ", "_").replace("-", "_")
+        out_file = f"{out_prefix}_{safe_name}.png"
 
-    fig.suptitle(title, y=1.02, fontsize=13, fontweight="bold")
-    fig.tight_layout(rect=[0, 0, 1, 0.93])
-
-    fig.savefig(out_file, dpi=150, bbox_inches="tight")
-    plt.close(fig)
-    print(f"[saved] {out_file}")
+        fig.savefig(out_file, dpi=150, bbox_inches="tight")
+        plt.close(fig)
+        print(f"[saved] {out_file}")
 
 
 def max_common_capacity(agg: pd.DataFrame):
@@ -186,81 +171,100 @@ def plot_grouped_at_capacity(
     agg: pd.DataFrame,
     metric_mean: str,
     metric_std: str,
-    y_label: str,
+    x_label: str,
     title_prefix: str,
-    out_file: str,
+    out_prefix: str,
 ) -> None:
     selected_capacity = max_common_capacity(agg)
     if selected_capacity is None:
-        print(f"[WARN] Skip {out_file}: no common capacity across strategies")
+        print(f"[WARN] Skip {out_prefix}: no common capacity across strategies")
         return
 
     sub = agg[agg["capacity"] == selected_capacity]
     workloads = ordered_workloads(sub)
     strategies = strategies_present(sub)
 
-    x = np.arange(len(workloads))
-    width = 0.24
+    for workload in workloads:
+        wsub = sub[sub["name"] == workload]
+        n_strat = len(strategies)
+        height = 0.22
+        y = np.arange(n_strat)
 
-    fig, ax = plt.subplots(figsize=(max(10, len(workloads) * 2.3), 6))
+        fig, ax = plt.subplots(figsize=(8, 2.8))
 
-    for i, strategy in enumerate(strategies):
         vals = []
         errs = []
-        for workload in workloads:
-            row = sub[(sub["name"] == workload) & (sub["type"] == strategy)]
-            if row.empty:
-                vals.append(0.0)
-                errs.append(0.0)
-            else:
-                vals.append(float(row[metric_mean].iloc[0]))
-                errs.append(float(row[metric_std].iloc[0]))
+        for i, strategy in enumerate(strategies):
+            row = wsub[wsub["type"] == strategy]
+            val = float(row[metric_mean].iloc[0]) if not row.empty else 0.0
+            err = float(row[metric_std].iloc[0]) if not row.empty else 0.0
+            vals.append(val)
+            errs.append(err)
 
-        offset = (i - (len(strategies) - 1) / 2.0) * width
-        bars = ax.bar(
-            x + offset,
-            vals,
-            width,
-            yerr=errs,
-            capsize=3,
-            label=strategy,
-            color=COLORS[strategy],
-            edgecolor="white",
-            linewidth=0.6,
-            alpha=0.9,
-        )
+            ax.barh(
+                y[i],
+                val,
+                height,
+                xerr=err,
+                capsize=3,
+                label=strategy,
+                color=COLORS[strategy],
+                edgecolor="white",
+                linewidth=0.6,
+                alpha=0.9,
+            )
 
-        # --- ADD THIS BLOCK ---
-        for bar, val, err in zip(bars, vals, errs):
+        # ── set xlim once with headroom ───────────────────────────
+        xmax = max(v + e for v, e in zip(vals, errs)) if vals else 1.0
+        ax.set_xlim(0, xmax * 1.22)
+        xlim_right = ax.get_xlim()[1]
+
+        # ── pass 2: annotate with inside/outside flip ─────────────
+        offset = xmax * 0.015
+        for i, (strategy, val, err) in enumerate(zip(strategies, vals, errs)):
             if val == 0.0:
                 continue
-            label_y = bar.get_height() + err + ax.get_ylim()[1] * 0.01
-            ax.text(
-                bar.get_x() + bar.get_width() / 2.0,
-                label_y,
-                f"{val:.1f}",
-                ha="center",
-                va="bottom",
-                fontsize=7.5,
-                fontweight="bold",
-                color=COLORS[strategy],
-            )
-        # --- END BLOCK ---
 
-    ax.set_title(f"{title_prefix} (capacity={selected_capacity:,})")
-    ax.set_ylabel(y_label)
-    ax.set_xticks(x)
-    ax.set_xticklabels(workloads)
-    ax.legend(loc="upper left", frameon=True)
+            # flip inside when the bar itself fills >70% of the axis
+            bar_ratio = val / xlim_right
+            would_clip = bar_ratio > 0.70
 
-    # give some headroom so labels are not clipped
-    ymin, ymax = ax.get_ylim()
-    ax.set_ylim(ymin, ymax * 1.12)
+            if would_clip:
+                ax.text(
+                    val * 0.97,
+                    y[i],
+                    f"{val:.1f}",
+                    va="center",
+                    ha="right",
+                    fontsize=8,
+                    fontweight="bold",
+                    color="white",
+                )
+            else:
+                ax.text(
+                    val + err + offset,
+                    y[i],
+                    f"{val:.1f}",
+                    va="center",
+                    ha="left",
+                    fontsize=8,
+                    fontweight="bold",
+                    color=COLORS[strategy],
+                )
 
-    fig.tight_layout()
-    fig.savefig(out_file, dpi=150, bbox_inches="tight")
-    plt.close(fig)
-    print(f"[saved] {out_file}")
+        ax.tick_params(axis="y", pad=12)
+        ax.set_xlabel(x_label)
+        ax.set_yticks(y)
+        ax.set_yticklabels(strategies, fontsize=9)
+        ax.legend(loc="lower right", frameon=True)
+
+        fig.tight_layout()
+
+        safe_name = workload.lower().replace(" ", "_").replace("-", "_")
+        out_file = f"{out_prefix}_{safe_name}.png"
+        fig.savefig(out_file, dpi=150, bbox_inches="tight")
+        plt.close(fig)
+        print(f"[saved] {out_file}")
 
 
 def main() -> None:
@@ -273,7 +277,7 @@ def main() -> None:
         metric_std="std_time_ms",
         y_label="Time (ms)",
         title="Benchmark Time vs Capacity",
-        out_file="benchmark_time_vs_capacity.png",
+        out_prefix="benchmark_time_vs_capacity",
     )
 
     plot_metric_vs_capacity(
@@ -282,25 +286,25 @@ def main() -> None:
         metric_std="std_ns_per_op",
         y_label="ns per op",
         title="Benchmark Latency vs Capacity",
-        out_file="benchmark_nsop_vs_capacity.png",
+        out_prefix="benchmark_nsop_vs_capacity",
     )
 
-    plot_grouped_at_capacity(
+    plot_grouped_at_capacity(  # <-- x_label and out_prefix
         agg=agg,
         metric_mean="mean_time_ms",
         metric_std="std_time_ms",
-        y_label="Time (ms)",
+        x_label="Time (ms)",
         title_prefix="Mean Time by Workload",
-        out_file="benchmark_time_ms.png",
+        out_prefix="benchmark_time_ms",
     )
 
     plot_grouped_at_capacity(
         agg=agg,
         metric_mean="mean_ns_per_op",
         metric_std="std_ns_per_op",
-        y_label="ns per op",
+        x_label="ns per op",
         title_prefix="Mean Latency by Workload",
-        out_file="benchmark_ns_per_op.png",
+        out_prefix="benchmark_ns_per_op",
     )
 
     print("Done.")
