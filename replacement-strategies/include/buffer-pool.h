@@ -23,8 +23,8 @@ class BufferPool {
     Page *tail;
     Replacer *replacer;
 
-    void push_head(Page *page);
-    void remove_page(Page *page);
+    void pushHead(Page *page);
+    void removePage(Page *page);
 };
 
 #endif // BUFFER_POOL_H

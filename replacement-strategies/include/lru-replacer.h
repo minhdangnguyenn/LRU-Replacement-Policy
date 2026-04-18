@@ -17,9 +17,9 @@ class LRUReplacer : public Replacer {
   private:
     Page *uhead;
     Page *utail;
-    std::unordered_map<int, Page *> unpinned_map;
+    std::unordered_map<int, Page *> unpinnedMap;
 
-    void remove_unpin(Page *page);
+    void removeUnpin(Page *page);
 };
 
 #endif // LRU_REPLACER_H

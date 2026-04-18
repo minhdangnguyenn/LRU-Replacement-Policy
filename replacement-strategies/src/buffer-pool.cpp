@@ -15,8 +15,8 @@ int BufferPool::get(int key) {
         return -1;
 
     Page *page = map[key];
-    remove_page(page);
-    push_head(page);
+    removePage(page);
+    pushHead(page);
     return page->getValue();
 }
 
@@ -25,8 +25,8 @@ void BufferPool::pin(int key, int value) {
     if (map.find(key) != map.end()) {
         Page *p = map[key];
         p->setValue(value);
-        remove_page(p);
-        push_head(p);
+        removePage(p);
+        pushHead(p);
 
         if (!p->pinned) {
             replacer->pin(p);
@@ -37,7 +37,7 @@ void BufferPool::pin(int key, int value) {
     else if ((int)map.size() < capacity) {
         Page *p = new Page(key, value);
         p->pinned = true;
-        push_head(p);
+        pushHead(p);
         map[key] = p;
     }
     // Case 3: new key, cache full -> evict via replacer, fallback to main list
@@ -55,14 +55,14 @@ void BufferPool::pin(int key, int value) {
             }
         }
 
-        remove_page(victim);
+        removePage(victim);
         map.erase(victim->getKey());
         delete victim;
 
         Page *np = new Page(key, value);
         np->pinned = true;
         map[key] = np;
-        push_head(np);
+        pushHead(np);
     }
 }
 
@@ -71,12 +71,12 @@ void BufferPool::unpin(Page *page) {
     replacer->unpin(page);
 }
 
-void BufferPool::remove_page(Page *node) {
+void BufferPool::removePage(Page *node) {
     node->prev->next = node->next;
     node->next->prev = node->prev;
 }
 
-void BufferPool::push_head(Page *page) {
+void BufferPool::pushHead(Page *page) {
     page->next = head->next;
     page->prev = head;
     head->next->prev = page;

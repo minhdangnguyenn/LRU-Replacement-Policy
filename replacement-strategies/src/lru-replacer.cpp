@@ -8,10 +8,10 @@ LRUReplacer::LRUReplacer() {
 }
 
 void LRUReplacer::unpin(Page *p) {
-    if (unpinned_map.count(p->getKey()))
+    if (unpinnedMap.count(p->getKey()))
         return;
 
-    unpinned_map[p->getKey()] = p;
+    unpinnedMap[p->getKey()] = p;
 
     p->unext = uhead->unext;
     p->uprev = uhead;
@@ -20,11 +20,11 @@ void LRUReplacer::unpin(Page *p) {
 }
 
 void LRUReplacer::pin(Page *p) {
-    if (unpinned_map.find(p->getKey()) == unpinned_map.end())
+    if (unpinnedMap.find(p->getKey()) == unpinnedMap.end())
         return;
 
-    remove_unpin(p);
-    unpinned_map.erase(p->getKey());
+    removeUnpin(p);
+    unpinnedMap.erase(p->getKey());
 }
 
 Page *LRUReplacer::evict() {
@@ -32,12 +32,12 @@ Page *LRUReplacer::evict() {
     if (victim == uhead)
         return nullptr; // all pinned
 
-    remove_unpin(victim);
-    unpinned_map.erase(victim->getKey());
+    removeUnpin(victim);
+    unpinnedMap.erase(victim->getKey());
     return victim;
 }
 
-void LRUReplacer::remove_unpin(Page *p) {
+void LRUReplacer::removeUnpin(Page *p) {
     p->uprev->unext = p->unext;
     p->unext->uprev = p->uprev;
 }
