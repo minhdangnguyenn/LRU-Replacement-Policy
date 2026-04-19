@@ -4,7 +4,7 @@ A **Buffer Pool** implemented in C++ benchmarking three replacement strategies:
 **Naive LRU O(n)**, **Optimized LRU O(1)**, and **FIFO O(1)** — modelled after
 real database buffer pool managers.
 
-Read the full blog post: [BLOG](#)
+Read the full blog post: [BLOG](https://medium.com/@minhnguyenn/fifo-vs-lru-a-benchmark-study-of-buffer-pool-replacement-strategies-32d3bc1f606b)
 
 ---
 
