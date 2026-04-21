@@ -5,15 +5,6 @@
 #include <utility>
 #include <vector>
 
-static bool DEBUG_ENABLED = false;
-
-#define DEBUG_LOG(fmt, ...)                                                    \
-    do {                                                                       \
-        if (DEBUG_ENABLED) {                                                   \
-            fprintf(stderr, "[DEBUG] " fmt "\n", ##__VA_ARGS__);               \
-        }                                                                      \
-    } while (0)
-
 namespace {
 constexpr int LEAF_MAX_KEYS = (PAGE_SIZE - KEY_START) / 8;
 constexpr int INNER_MAX_KEYS = (PAGE_SIZE - 16) / 8;
@@ -22,8 +13,6 @@ constexpr int INNER_MAX_KEYS = (PAGE_SIZE - 16) / 8;
 BPlusTree::BPlusTree(BufferPool *bp) : buffer_pool(bp), root_page_id(0) {
     char *page = bp->fetch_page(root_page_id);
 
-    // Fresh files contain an all-zero page 0. We keep page 0 as the root so
-    // tests that write raw pages directly still interact with the real root.
     if (read_int(page, NEXTLEAF_OFFSET) == 0) {
         write_int(page, TYPE_OFFSET, NODETYPE::LEAF);
         write_int(page, NUMKEYS_OFFSET, 0);
@@ -76,7 +65,8 @@ int BPlusTree::lookup(int key) {
         if (type == NODETYPE::LEAF) {
             for (int i = 0; i < num_keys; i++) {
                 if (read_int(page, KEY_START + i * 4) == key) {
-                    int value = read_int(page, KEY_START + num_keys * 4 + i * 4);
+                    int value =
+                        read_int(page, KEY_START + num_keys * 4 + i * 4);
                     buffer_pool->unpin_page(current_pid, false);
                     return value;
                 }
@@ -182,7 +172,9 @@ void BPlusTree::insert_into_parent(int left_page_id, int key, int right_page_id,
         write_int(parent, KEY_START + i * 4, keys[i]);
     }
     for (int i = 0; i <= new_num_keys; i++) {
-        write_int(parent, KEY_START + new_num_keys * 4 + i * 4, children[i]);
+        write_int(parent,
+                  KEY_START + new_num_keys * 4 + i * 4,
+                  children[i]);
     }
     set_num_keys(parent, new_num_keys);
 
@@ -269,7 +261,9 @@ void BPlusTree::split_inner(int page_id,
         write_int(page, KEY_START + i * 4, keys[i]);
     }
     for (int i = 0; i <= left_size; i++) {
-        write_int(page, KEY_START + left_size * 4 + i * 4, children[i]);
+        write_int(page,
+                  KEY_START + left_size * 4 + i * 4,
+                  children[i]);
     }
     set_num_keys(page, left_size);
 
@@ -280,7 +274,9 @@ void BPlusTree::split_inner(int page_id,
     write_int(right_page, NEXTLEAF_OFFSET, -1);
 
     for (int i = 0; i < right_size; i++) {
-        write_int(right_page, KEY_START + i * 4, keys[mid + 1 + i]);
+        write_int(right_page,
+                  KEY_START + i * 4,
+                  keys[mid + 1 + i]);
     }
     for (int i = 0; i <= right_size; i++) {
         write_int(right_page,
@@ -290,7 +286,10 @@ void BPlusTree::split_inner(int page_id,
 
     buffer_pool->unpin_page(page_id, true);
     buffer_pool->unpin_page(right_page_id, true);
-    insert_into_parent(page_id, promote_key, right_page_id, parent_info.second);
+    insert_into_parent(page_id,
+                       promote_key,
+                       right_page_id,
+                       parent_info.second);
 }
 
 void BPlusTree::insert(int key, int value) {
@@ -299,7 +298,9 @@ void BPlusTree::insert(int key, int value) {
 
     for (int i = 0; i < num_keys; i++) {
         if (read_int(leaf_page, KEY_START + i * 4) == key) {
-            write_int(leaf_page, KEY_START + num_keys * 4 + i * 4, value);
+            write_int(leaf_page,
+                      KEY_START + num_keys * 4 + i * 4,
+                      value);
             buffer_pool->unpin_page(leaf_pid, true);
             return;
         }
@@ -343,13 +344,16 @@ void BPlusTree::remove(int key) {
             continue;
         }
         keys.push_back(read_int(leaf_page, KEY_START + i * 4));
-        values.push_back(read_int(leaf_page, KEY_START + num_keys * 4 + i * 4));
+        values.push_back(
+            read_int(leaf_page, KEY_START + num_keys * 4 + i * 4));
     }
 
     int new_num_keys = num_keys - 1;
     for (int i = 0; i < new_num_keys; i++) {
         write_int(leaf_page, KEY_START + i * 4, keys[i]);
-        write_int(leaf_page, KEY_START + new_num_keys * 4 + i * 4, values[i]);
+        write_int(leaf_page,
+                  KEY_START + new_num_keys * 4 + i * 4,
+                  values[i]);
     }
     set_num_keys(leaf_page, new_num_keys);
 
@@ -369,7 +373,8 @@ void BPlusTree::range_scan(int low, int high, std::vector<int> &results) {
             int key = read_int(current_page, KEY_START + i * 4);
             if (key >= low && key <= high) {
                 results.push_back(
-                    read_int(current_page, KEY_START + num_keys * 4 + i * 4));
+                    read_int(current_page,
+                             KEY_START + num_keys * 4 + i * 4));
             }
             if (key > high) {
                 buffer_pool->unpin_page(current_pid, false);
