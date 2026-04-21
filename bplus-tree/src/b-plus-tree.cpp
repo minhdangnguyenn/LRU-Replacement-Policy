@@ -1,9 +1,20 @@
 #include "../include/b-plus-tree.h"
+#include <cstdio>
 #include <iostream>
 #include <stack>
 #include <tuple>
 #include <utility>
 #include <vector>
+
+// Debug flag
+static bool DEBUG_ENABLED = false;
+
+#define DEBUG_LOG(fmt, ...)                                                    \
+    do {                                                                       \
+        if (DEBUG_ENABLED) {                                                   \
+            fprintf(stderr, "[DEBUG] " fmt "\n", ##__VA_ARGS__);               \
+        }                                                                      \
+    } while (0)
 
 BPlusTree::BPlusTree(BufferPool *bp) : buffer_pool(bp) {
 
@@ -34,10 +45,27 @@ int BPlusTree::binary_search(char *page, int num_keys, int key) {
     int low = 0;
     int high = num_keys - 1;
 
+    DEBUG_LOG("binary_search: searching for key=%d among %d keys", key,
+              num_keys);
+
+    // Log all keys in this inner node
+    if (DEBUG_ENABLED && num_keys > 0) {
+        fprintf(stderr, "[DEBUG]   Keys in inner node: ");
+        for (int i = 0; i < num_keys; i++) {
+            int k = read_int(page, 12 + i * 4);
+            fprintf(stderr, "%d ", k);
+        }
+        fprintf(stderr, "\n");
+    }
+
     // Keys are sorted ascending
     while (low <= high) {
         int mid = low + (high - low) / 2;
         int mid_key = read_int(page, 12 + mid * 4);
+
+        DEBUG_LOG(
+            "  binary_search iteration: low=%d, high=%d, mid=%d, mid_key=%d",
+            low, high, mid, mid_key);
 
         if (key < mid_key)
             high = mid - 1;
@@ -45,16 +73,30 @@ int BPlusTree::binary_search(char *page, int num_keys, int key) {
             low = mid + 1;
     }
 
+    DEBUG_LOG(
+        "  binary_search result: low=%d (final position), will use child[%d]",
+        low, low);
+
     // Children start immediately after keys
     int children_start = 12 + num_keys * 4;
+    int child_pid = read_int(page, children_start + low * 4);
 
-    // child index = low
-    return read_int(page, children_start + low * 4);
+    DEBUG_LOG("  binary_search returning child page_id=%d", child_pid);
+
+    // Sanity check: low should be in valid range [0, num_keys]
+    if (low < 0 || low > num_keys) {
+        DEBUG_LOG("  ERROR: low=%d is out of valid range [0, %d]", low,
+                  num_keys);
+    }
+
+    return child_pid;
 }
 
 int BPlusTree::lookup(int key) {
 
+    DEBUG_LOG("=== LOOKUP START: key=%d ===", key);
     int current_pid = this->root_page_id;
+    int depth = 0;
 
     while (true) {
 
@@ -63,34 +105,57 @@ int BPlusTree::lookup(int key) {
         int type = read_int(page, TYPE_OFFSET);
         int num_keys = read_int(page, NUMKEYS_OFFSET);
 
+        DEBUG_LOG("Lookup depth=%d, page_id=%d, type=%s, num_keys=%d", depth,
+                  current_pid, (type == NODETYPE::LEAF ? "LEAF" : "INNER"),
+                  num_keys);
+
         if (type == NODETYPE::LEAF) {
+
+            DEBUG_LOG("  At leaf node, searching for key=%d among %d keys", key,
+                      num_keys);
+
+            if (DEBUG_ENABLED && num_keys > 0) {
+                fprintf(stderr, "[DEBUG]    Keys in leaf: ");
+                for (int i = 0; i < num_keys; i++) {
+                    int k = read_int(page, 12 + i * 4);
+                    fprintf(stderr, "%d ", k);
+                }
+                fprintf(stderr, "\n");
+            }
 
             for (int i = 0; i < num_keys; i++) {
                 int k = read_int(page, 12 + i * 4);
                 if (k == key) {
 
                     int value = read_int(page, 12 + num_keys * 4 + i * 4);
+                    DEBUG_LOG("  Key found! value=%d", value);
 
                     buffer_pool->unpin_page(current_pid, false);
                     return value;
                 }
             }
 
+            DEBUG_LOG("  Key NOT found in leaf node");
             buffer_pool->unpin_page(current_pid, false);
             return -1;
         }
 
         if (type == NODETYPE::INNER) {
 
+            DEBUG_LOG("  At inner node, will call binary_search");
             int next_pid = binary_search(page, num_keys, key);
+
+            DEBUG_LOG("  binary_search returned next_pid=%d", next_pid);
 
             // Unpin current BEFORE descending
             buffer_pool->unpin_page(current_pid, false);
             current_pid = next_pid;
+            depth++;
             continue;
         }
 
         // Should not happen, but safe cleanup
+        DEBUG_LOG("ERROR: Invalid node type=%d", type);
         buffer_pool->unpin_page(current_pid, false);
         return -1;
     }
@@ -98,21 +163,29 @@ int BPlusTree::lookup(int key) {
 
 std::tuple<int, char *, std::stack<int>> BPlusTree::find_leaf(int key) {
 
+    DEBUG_LOG("=== FIND_LEAF START: key=%d ===", key);
     int current_pid = this->root_page_id;
     std::stack<int> parents;
+    int depth = 0;
 
     char *page = buffer_pool->fetch_page(current_pid);
     int type = read_int(page, TYPE_OFFSET);
+    int num_keys = read_int(page, NUMKEYS_OFFSET);
+
+    DEBUG_LOG("find_leaf: root page_id=%d, type=%s, num_keys=%d", current_pid,
+              (type == NODETYPE::LEAF ? "LEAF" : "INNER"), num_keys);
 
     while (type == NODETYPE::INNER) {
 
-        int num_keys = read_int(page, NUMKEYS_OFFSET);
+        DEBUG_LOG("find_leaf depth=%d: at inner node page_id=%d with %d keys",
+                  depth, current_pid, num_keys);
 
         // remember this inner node for potential splits later
         parents.push(current_pid);
 
         // find correct child using binary search
         int child_pid = binary_search(page, num_keys, key);
+        DEBUG_LOG("find_leaf: binary_search returned child_pid=%d", child_pid);
 
         // unpin current inner node before descending
         buffer_pool->unpin_page(current_pid, false);
@@ -121,7 +194,17 @@ std::tuple<int, char *, std::stack<int>> BPlusTree::find_leaf(int key) {
         current_pid = child_pid;
         page = buffer_pool->fetch_page(current_pid);
         type = read_int(page, TYPE_OFFSET);
+        num_keys = read_int(page, NUMKEYS_OFFSET);
+        depth++;
+
+        DEBUG_LOG("find_leaf: descended to page_id=%d, type=%s, num_keys=%d",
+                  current_pid, (type == NODETYPE::LEAF ? "LEAF" : "INNER"),
+                  num_keys);
     }
+
+    DEBUG_LOG("find_leaf: reached leaf at page_id=%d with %d keys, "
+              "parent_stack_size=%zu",
+              current_pid, num_keys, parents.size());
 
     // page is now a LEAF and still pinned
     // caller is responsible for unpinning it
@@ -130,9 +213,11 @@ std::tuple<int, char *, std::stack<int>> BPlusTree::find_leaf(int key) {
 
 void BPlusTree::insert(int key, int value) {
 
+    DEBUG_LOG("=== INSERT START: key=%d, value=%d ===", key, value);
     auto [leaf_pid, leaf_page, parents] = find_leaf(key);
 
     int num_keys = get_num_keys(leaf_page);
+    DEBUG_LOG("insert: found leaf page_id=%d with %d keys", leaf_pid, num_keys);
 
     // check if key already exists
     for (int i = 0; i < num_keys; i++) {
@@ -141,6 +226,8 @@ void BPlusTree::insert(int key, int value) {
 
         if (k == key) {
             // overwrite the value
+            DEBUG_LOG("insert: key=%d already exists, overwriting value to %d",
+                      key, value);
             write_int(leaf_page, 12 + num_keys * 4 + i * 4, value);
             buffer_pool->unpin_page(leaf_pid, true);
             return;
@@ -149,19 +236,25 @@ void BPlusTree::insert(int key, int value) {
 
     // check if leaf has room
     int max_keys = (PAGE_SIZE - 12) / 8;
+    DEBUG_LOG("insert: max_keys=%d, current num_keys=%d, has_room=%s", max_keys,
+              num_keys, num_keys < max_keys ? "YES" : "NO");
 
     if (num_keys < max_keys) {
         // insert directly, then unpin
+        DEBUG_LOG("insert: inserting into leaf directly");
         insert_into_leaf(leaf_page, key, value);
         buffer_pool->unpin_page(leaf_pid, true);
+        DEBUG_LOG("insert: done (direct insert)");
         return;
     }
 
     // leaf is full, must split
     // split_leaf will unpin leaf_page internally
     // so we unpin here BEFORE calling split_leaf
+    DEBUG_LOG("insert: leaf is full, triggering split");
     buffer_pool->unpin_page(leaf_pid, false);
     split_leaf(leaf_pid, key, value, parents);
+    DEBUG_LOG("insert: done (after split)");
 }
 
 void BPlusTree::insert_into_leaf(char *page, int key, int value) {
@@ -210,10 +303,15 @@ void BPlusTree::insert_into_leaf(char *page, int key, int value) {
 void BPlusTree::split_leaf(int leaf_page_id, int key, int value,
                            std::stack<int> parent_stack) {
 
+    DEBUG_LOG("=== SPLIT_LEAF START: leaf_page_id=%d, key=%d, value=%d ===",
+              leaf_page_id, key, value);
+
     int max_keys = (PAGE_SIZE - 12) / 8;
     char *page = this->buffer_pool->fetch_page(leaf_page_id);
     int num_keys = this->read_int(page, 4);
     int old_next = this->read_int(page, 8);
+    DEBUG_LOG("split_leaf: max_keys=%d, num_keys=%d, old_next=%d", max_keys,
+              num_keys, old_next);
 
     int temp_keys[max_keys + 1];
     int temp_values[max_keys + 1];
@@ -246,9 +344,20 @@ void BPlusTree::split_leaf(int leaf_page_id, int key, int value,
 
     // step 3: split point
     int mid = (max_keys + 1) / 2;
+    DEBUG_LOG(
+        "split_leaf: mid=%d, left will have %d keys, right will have %d keys",
+        mid, mid, max_keys - mid + 1);
+
     // step 4: create and fill the right leaf
 
     // step 5: rewrite the left leaf
+    if (DEBUG_ENABLED) {
+        fprintf(stderr, "[DEBUG] split_leaf: LEFT keys: ");
+        for (int i = 0; i < mid; i++)
+            fprintf(stderr, "%d ", temp_keys[i]);
+        fprintf(stderr, "\n");
+    }
+
     for (int i = 0; i < mid; i++) {
         this->write_int(page, 12 + i * 4, temp_keys[i]);
         this->write_int(page, 12 + mid * 4 + i * 4, temp_values[i]);
@@ -262,7 +371,14 @@ void BPlusTree::split_leaf(int leaf_page_id, int key, int value,
 
     int right_num_keys = max_keys - mid + 1;
 
-    this->write_int(right_leaf_data, 0, 1);
+    if (DEBUG_ENABLED) {
+        fprintf(stderr, "[DEBUG] split_leaf: RIGHT keys: ");
+        for (int i = mid; i <= max_keys; i++)
+            fprintf(stderr, "%d ", temp_keys[i]);
+        fprintf(stderr, "\n");
+    }
+
+    this->write_int(right_leaf_data, 0, NODETYPE::LEAF);
     this->write_int(right_leaf_data, 4,
                     right_num_keys); // node type, 1 for leaf, 0 for inner
     this->write_int(right_leaf_data, 8, old_next);
@@ -279,12 +395,14 @@ void BPlusTree::split_leaf(int leaf_page_id, int key, int value,
 
     // step 6: push mid key point to inner
     int promote_key = temp_keys[mid];
+    DEBUG_LOG("split_leaf: promote_key=%d to parent", promote_key);
     // if empty -> create new root
     if (parent_stack.empty()) {
         int new_root_pid = this->buffer_pool->create_new_page();
         char *root_data = this->buffer_pool->fetch_page(new_root_pid);
 
-        this->write_int(root_data, 0, 0); // write type inner for inner node
+        this->write_int(root_data, 0,
+                        NODETYPE::INNER); // write type inner for inner node
         this->write_int(root_data, 4, 1); // write nums_key = 1
         write_int(root_data, 12, promote_key);          // key[0]
         write_int(root_data, 12 + 1 * 4, leaf_page_id); // child[0] = 16
@@ -360,8 +478,10 @@ void BPlusTree::split_leaf(int leaf_page_id, int key, int value,
 void BPlusTree::split_inner(int pid,
                             std::pair<int, std::stack<int>> parent_info) {
 
+    DEBUG_LOG("=== SPLIT_INNER START: page_id=%d ===", pid);
     char *page = buffer_pool->fetch_page(pid);
     int num = get_num_keys(page);
+    DEBUG_LOG("split_inner: num_keys=%d", num);
 
     int keys[num];
     int children[num + 1];
@@ -375,6 +495,8 @@ void BPlusTree::split_inner(int pid,
     int promote = keys[mid];
     int left_n = mid;
     int right_n = num - mid - 1;
+    DEBUG_LOG("split_inner: mid=%d, promote=%d, left_n=%d, right_n=%d", mid,
+              promote, left_n, right_n);
 
     // rewrite left node
     for (int i = 0; i < left_n; i++)
@@ -386,6 +508,7 @@ void BPlusTree::split_inner(int pid,
     // create right node
     int right_pid = buffer_pool->create_new_page();
     char *rp = buffer_pool->fetch_page(right_pid);
+    DEBUG_LOG("split_inner: created right node with page_id=%d", right_pid);
 
     write_int(rp, TYPE_OFFSET, NODETYPE::INNER);
     write_int(rp, NEXTLEAF_OFFSET, -1);
@@ -398,6 +521,7 @@ void BPlusTree::split_inner(int pid,
 
     // push promote up
     if (parent_info.second.empty()) {
+        DEBUG_LOG("split_inner: parent stack empty, creating new root");
         int root_pid = buffer_pool->create_new_page();
         char *root = buffer_pool->fetch_page(root_pid);
 
